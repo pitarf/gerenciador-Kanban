@@ -1,0 +1,6 @@
+{
+  "name": "AlertOps Kanban SaaS",
+  "description": "Plataforma de gestão operacional de alertas AlertOps com Kanban integrado e dashboards gerenciais.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["kanban", "alertops-sync", "dashboards"]
+}

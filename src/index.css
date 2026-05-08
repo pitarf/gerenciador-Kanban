@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@theme {
+  --color-transpetro-green: #008542;
+  --color-transpetro-yellow: #ffcc00;
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-green::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  .scrollbar-green::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .scrollbar-green::-webkit-scrollbar-thumb {
+    background: #008542;
+    border-radius: 10px;
+  }
+  .scrollbar-green::-webkit-scrollbar-thumb:hover {
+    background: #006b35;
+  }
+
+  /* Custom Quill Mention Styles */
+  .ql-mention-list-container {
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15) !important;
+    background: white !important;
+    border: 1px solid #e2e8f0 !important;
+    z-index: 10000 !important;
+    min-width: 240px !important;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .ql-mention-list-item {
+    padding: 0 !important;
+    margin: 0 !important;
+    line-height: normal !important;
+    min-height: 0 !important;
+    display: block !important;
+    height: auto !important;
+    transition: all 0.2s;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .ql-mention-list-item:last-child {
+    border-bottom: none;
+  }
+
+  .ql-mention-list-item.selected {
+    background-color: #f1f5f9 !important;
+  }
+
+  /* Mentions inside the editor */
+  .ql-editor .mention {
+    height: auto;
+    width: auto;
+    display: inline;
+    background-color: #f0fdf4;
+    color: #008542;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin: 0 1px;
+    user-select: all;
+  }
+
+  .ql-editor .mention .ql-mention-denotation-char {
+    color: #4ade80;
+    margin-right: 1px;
+  }
+  
+  .quill-editor .ql-container {
+    overflow: visible !important;
+  }
+  
+  .quill-editor .ql-editor {
+    overflow: visible !important;
+  }
+}

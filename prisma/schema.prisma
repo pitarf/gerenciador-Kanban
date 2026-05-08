@@ -1,0 +1,294 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public"]
+}
+
+model Tenant {
+  id               String           @id @default(uuid()) @db.Uuid
+  name             String           @db.VarChar(255)
+  slug             String           @unique @db.VarChar(255)
+  code             String?          @unique @db.VarChar(50)
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  card_statuses    CardStatus[]
+  metric_snapshots MetricSnapshot[]
+  system_settings  SystemSetting[]
+  users            User[]
+
+  @@map("tenants")
+  @@schema("public")
+}
+
+model User {
+  id             String         @id @default(uuid()) @db.Uuid
+  tenant_id      String         @db.Uuid
+  name           String         @db.VarChar(255)
+  email          String         @unique @db.VarChar(255)
+  password_hash  String?        @db.VarChar(255)
+  role           String         @default("OPERATOR")
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  comments       CardComment[]
+  history        CardHistory[]
+  assigned_cards Card[]         @relation("AssignedCards")
+  notifications  Notification[]
+  reminders      Reminder[]
+  tenant         Tenant         @relation(fields: [tenant_id], references: [id])
+
+  @@map("users")
+  @@schema("public")
+}
+
+model AlertopsAlert {
+  id                 String    @id @default(uuid()) @db.Uuid
+  alertops_thread_id String    @unique @db.VarChar(255)
+  source_identifier  String?   @db.VarChar(255)
+  integration_name   String?   @db.VarChar(255)
+  status_alertops    String?   @db.VarChar(255)
+  title              String?
+  description        String?
+  topic              String?
+  criticidade        String?   @db.VarChar(255)
+  owner_name         String?   @db.VarChar(255)
+  owner_username     String?   @db.VarChar(255)
+  last_note          String?
+  resolution_note    String?
+  source_url         String?
+  json_alerta        Json?
+  json_operacao      Json?
+  json_prog_duto     Json?
+  json_detalhe       Json?
+  raw_payload        Json?
+  alert_created_at   DateTime?
+  alert_updated_at   DateTime?
+  alert_closed_at    DateTime?
+  sla_deadline_at    DateTime?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @default(now())
+  message_text       String?
+  cards              Card[]
+
+  @@map("alertops_alerts")
+  @@schema("public")
+}
+
+model CardStatus {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenant_id  String   @db.Uuid
+  name       String   @db.VarChar(255)
+  slug       String   @db.VarChar(255)
+  color      String?  @db.VarChar(255)
+  position   Int      @default(0)
+  is_initial Boolean  @default(false)
+  is_final   Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id])
+  cards      Card[]
+
+  @@unique([tenant_id, slug])
+  @@map("card_statuses")
+  @@schema("public")
+}
+
+model Card {
+  id                 String           @id @default(uuid()) @db.Uuid
+  tenant_id          String           @db.Uuid
+  alertops_alert_id  String?          @db.Uuid
+  alertops_thread_id String?          @db.VarChar(255)
+  title              String
+  description        String?
+  status_id          String           @db.Uuid
+  priority           String?          @db.VarChar(255)
+  criticidade        String?          @db.VarChar(255)
+  owner_name         String?          @db.VarChar(255)
+  assigned_user_id   String?          @db.Uuid
+  due_at             DateTime?
+  started_at         DateTime?
+  resolved_at        DateTime?
+  archived_at        DateTime?
+  created_at         DateTime         @default(now())
+  updated_at         DateTime         @updatedAt
+  message_text       String?
+  attachments        CardAttachment[]
+  checklists         CardChecklist[]
+  comments           CardComment[]
+  history            CardHistory[]
+  labels             CardLabel[]
+  reminders          Reminder[]
+  group_id           String?          @db.Uuid
+  group              AlertGroup?      @relation(fields: [group_id], references: [id])
+  alertops_alert     AlertopsAlert?   @relation(fields: [alertops_alert_id], references: [id])
+  assigned_user      User?            @relation("AssignedCards", fields: [assigned_user_id], references: [id])
+  status             CardStatus       @relation(fields: [status_id], references: [id])
+
+  @@map("cards")
+  @@schema("public")
+}
+
+model CardLabel {
+  id         String   @id @default(uuid()) @db.Uuid
+  card_id    String   @db.Uuid
+  name       String   @db.VarChar(100)
+  color      String   @db.VarChar(50)
+  created_at DateTime @default(now())
+  card       Card     @relation(fields: [card_id], references: [id])
+
+  @@map("card_labels")
+  @@schema("public")
+}
+
+model CardHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  card_id    String   @db.Uuid
+  user_id    String?  @db.Uuid
+  action     String   @db.VarChar(255)
+  field_name String?  @db.VarChar(255)
+  old_value  String?
+  new_value  String?
+  metadata   Json?
+  created_at DateTime @default(now())
+  card       Card     @relation(fields: [card_id], references: [id])
+  user       User?    @relation(fields: [user_id], references: [id])
+
+  @@map("card_history")
+  @@schema("public")
+}
+
+model CardComment {
+  id          String   @id @default(uuid()) @db.Uuid
+  card_id     String   @db.Uuid
+  user_id     String   @db.Uuid
+  comment     String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  attachments Json?
+  card        Card     @relation(fields: [card_id], references: [id])
+  user        User     @relation(fields: [user_id], references: [id])
+
+  @@map("card_comments")
+  @@schema("public")
+}
+
+model CardChecklist {
+  id         String   @id @default(uuid()) @db.Uuid
+  card_id    String   @db.Uuid
+  title      String   @db.VarChar(255)
+  is_done    Boolean  @default(false)
+  position   Int      @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  card       Card     @relation(fields: [card_id], references: [id])
+
+  @@map("card_checklists")
+  @@schema("public")
+}
+
+model CardAttachment {
+  id          String   @id @default(uuid()) @db.Uuid
+  card_id     String   @db.Uuid
+  file_name   String   @db.VarChar(255)
+  file_type   String?  @db.VarChar(100)
+  file_url    String
+  uploaded_at DateTime @default(now())
+  card        Card     @relation(fields: [card_id], references: [id])
+
+  @@map("card_attachments")
+  @@schema("public")
+}
+
+model MetricSnapshot {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenant_id              String   @db.Uuid
+  snapshot_date          DateTime
+  total_assigned         Int      @default(0)
+  total_open_cards       Int      @default(0)
+  total_overdue          Int      @default(0)
+  total_resolved         Int      @default(0)
+  avg_resolution_minutes Int      @default(0)
+  payload                Json?
+  created_at             DateTime @default(now())
+  tenant                 Tenant   @relation(fields: [tenant_id], references: [id])
+
+  @@map("metric_snapshots")
+  @@schema("public")
+}
+
+model SystemSetting {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenant_id  String?  @db.Uuid
+  key        String   @db.VarChar(255)
+  value      String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  tenant     Tenant?  @relation(fields: [tenant_id], references: [id])
+
+  @@map("system_settings")
+  @@schema("public")
+}
+
+model SyncLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  status        String
+  message       String?
+  alerts_found  Int      @default(0)
+  cards_created Int      @default(0)
+  errors_count  Int      @default(0)
+  payload       Json?
+  created_at    DateTime @default(now())
+
+  @@map("sync_logs")
+  @@schema("public")
+}
+
+model Notification {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  title      String   @db.VarChar(255)
+  message    String
+  link       String?
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now())
+  user       User     @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@map("notifications")
+  @@schema("public")
+}
+
+model Reminder {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  card_id     String?  @db.Uuid
+  title       String   @db.VarChar(255)
+  description String?
+  due_at      DateTime
+  is_done     Boolean  @default(false)
+  mentions    Json?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  user        User     @relation(fields: [user_id], references: [id])
+  card        Card?    @relation(fields: [card_id], references: [id])
+
+  @@map("reminders")
+  @@schema("public")
+}
+
+model AlertGroup {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  name        String   @db.VarChar(255)
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  cards       Card[]
+
+  @@map("alert_groups")
+  @@schema("public")
+}
