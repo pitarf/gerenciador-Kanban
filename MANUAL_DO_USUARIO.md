@@ -24,7 +24,7 @@ Acesse a página de login para se autenticar ou criar uma conta.
 1. Clique em **"Cadastre-se"** na tela de login.
 2. Na página de cadastro, você tem duas opções no topo:
    - **Criar Unidade:** Utilize esta opção se você é o primeiro integrante e deseja criar o ambiente (Tenant) da sua empresa do zero. Insira o nome da sua organização.
-   - **Entrar com Código:** Se a sua empresa já utiliza o AlertOps, solicite o **Código de Convite** ao administrador e entre neste modo. Seu usuário será automaticamente vinculado à organização existente.
+   - **Entrar com Código:** Se a sua empresa já utiliza o AlertOps, solicite o **Código de Convite** ao administrador. Para criar conta como **TORRE**, deve usar o código **`TORRE26`**. Seu usuário será automaticamente vinculado à organização existente.
 3. Preencha seus dados de identificação (Nome, E-mail, Senha e Confirmação de senha) e crie a conta.
 
 ### Login
