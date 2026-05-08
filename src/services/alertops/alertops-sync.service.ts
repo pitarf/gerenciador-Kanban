@@ -1,7 +1,7 @@
 import crypto from 'crypto';
-import prisma from '../../lib/prisma';
-import { parseAlertOpsDate } from '../../lib/date-parser';
-import { safeJsonParse } from '../../lib/json-parser';
+import prisma from '../../lib/prisma.js';
+import { parseAlertOpsDate } from '../../lib/date-parser.js';
+import { safeJsonParse } from '../../lib/json-parser.js';
 
 export async function syncAssignedAlertOpsAlerts() {
   const syncId = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);

@@ -1,8 +1,8 @@
 import express from 'express';
-import prisma from '../src/lib/prisma';
+import prisma from '../src/lib/prisma.js';
 import bcrypt from 'bcryptjs';
-import { generateToken, authenticate, AuthRequest, authorize } from '../src/lib/auth';
-import { syncAssignedAlertOpsAlerts } from '../src/services/alertops/alertops-sync.service';
+import { generateToken, authenticate, AuthRequest, authorize } from '../src/lib/auth.js';
+import { syncAssignedAlertOpsAlerts } from '../src/services/alertops/alertops-sync.service.js';
 
 /**
  * ARQUIVO: src/server/app.ts
