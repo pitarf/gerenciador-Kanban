@@ -7,12 +7,14 @@
 - **Banco de Dados:** Neon PostgreSQL
 - **Estado Global:** React Query
 
-## Estrutura de Pastas
+## Estrutura de Pastas e Arquitetura
+- `/src/server/app.ts`: Lógica central do Express (Rotas e Middlewares).
+- `/api/index.ts`: Entry point para Vercel Serverless.
+- `/server.ts`: Entry point para desenvolvimento local (Vite Middleware).
 - `/src`: Frontend React
   - `/components`: Componentes reutilizáveis
   - `/services`: APIs e serviços de frontend
-  - `/lib`: Configurações de bibliotecas (Prisma client frontend, etc)
-- `/server.ts`: Ponto de entrada do servidor full-stack
+  - `/lib`: Configurações de bibliotecas (Prisma, Auth, etc)
 - `/prisma`: Definições de banco e migrations
 - `/documents`: Documentação técnica e de progresso
 
@@ -21,5 +23,12 @@
 - `npx prisma generate`: Gera o cliente Prisma.
 - `npx prisma migrate dev`: Cria e aplica migrations.
 
-## Fluxo de Sincronização
-O serviço de sincronização lê da tabela `tclog_alertops.alert_events` registros com status 'Assigned' e realiza um upsert na tabela `alertops_alerts`. Em seguida, cria ou atualiza os `cards` vinculados.
+## Fluxo de Sincronização e Lembretes
+A sincronização busca alertas com status `Assigned` na tabela `tclog_alertops.alert_events` e gera/atualiza os cards no Kanban.
+- **Local:** `setInterval` no `server.ts` (60s).
+- **Produção (Vercel):** Rota `/api/internal/process-reminders` disparada por Cron Job.
+
+## Padrões de Código
+- **Comentários:** Todas as funções e rotas principais devem ser comentadas (padrão JSDoc em PT-BR).
+- **Segurança:** RBAC implementado via middleware `authorize(['ADMIN'])`.
+- **Banco:** Sempre usar migrations para alterações de schema.

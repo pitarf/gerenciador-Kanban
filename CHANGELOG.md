@@ -1,5 +1,16 @@
 # Changelog - AlertOps Kanban SaaS
 
+## [1.1.1] - 2026-05-08
+### Adicionado
+- Configuração de deploy para Vercel (`vercel.json`, `api/index.ts`).
+- Rota interna `/api/internal/process-reminders` para Cron Jobs na Vercel.
+- Comentários detalhados em todas as rotas e funções do backend.
+
+### Alterado
+- Refatoração da arquitetura do servidor: a lógica do Express foi movida para `src/server/app.ts`.
+- `server.ts` agora é o entry point exclusivo para desenvolvimento local.
+- Melhoria no dashboard de métricas para garantir estabilidade no deploy.
+
 ## [1.1.0] - 2026-05-08
 ### Adicionado
 - Trava de segurança (RBAC) no Backend e Frontend para acesso à página de Settings (apenas Admins).

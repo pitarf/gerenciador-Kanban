@@ -1,27 +1,17 @@
-# Guia de Tarefas - AlertOps Kanban SaaS
+# Roadmap de Tarefas - AlertOps Kanban SaaS
 
-## Pendentes
-- [ ] Desenvolver Landing Page (Vitrine SaaS).
-- [ ] Implementar mecanismo de otimização de imagens (WebP/Redimensionamento).
-- [ ] Configurar monitoramento de logs de produção.
+## 🚀 Pendentes
+- [ ] Landing Page Swiss/Modern (Design Premium, Motion, Harmonia Verde/Cinza).
+- [ ] Otimização de Imagens (Conversão para WebP).
+- [ ] Monitoramento de Logs em Produção.
 
-## Fazendo
-- [x] Implementar servidor Express base (`server.ts`).
-- [x] Implementar middleware de autenticação JWT + RBAC.
-- [x] Implementar serviço de sincronização `alertops-sync.service.ts`.
-- [x] Criar API de Autenticação (Login/Me).
-- [x] Criar API de Cards (CRUD + History).
-- [x] Desenvolver Dashboard Kanban.
-- [x] Desenvolver Dashboard de Métricas (MTTR/SLA).
-- [x] Implementar área de Administração (Branding, Usuários, Status).
-- [ ] Preparação para Deploy / Push para Repositório Remoto.
+## 🚧 Fazendo
+- [ ] Testes de deploy na Vercel.
 
-## Concluído
-- [x] Definição do schema do banco de dados (Prisma).
-- [x] Instalação de dependências.
-- [x] Configuração de metadados e variáveis de ambiente.
-- [x] Trava de segurança (RBAC) para acesso às Configurações.
-- [x] Edição de Nome e Código da Unidade nas Configurações.
-- [x] Refinamento do Dashboard com cálculos de MTTR/SLA e tooltips explicativos.
-- [x] Criação do MANUAL_DO_USUARIO.md.
-
+## ✅ Concluído
+- [x] Configuração de Deploy Vercel (Express App Isolation).
+- [x] Documentação e Comentários (Versão 1.1.1).
+- [x] RBAC: Proteção de rotas `/api/users` e `/api/tenant/info`.
+- [x] UI: Edição de nome da Organização e Código de Convite.
+- [x] UI: Tooltips e Guia de Usuário (Manual).
+- [x] Versão 1.1.0: Estabilização de funcionalidades core.

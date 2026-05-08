@@ -1,3 +1,10 @@
+/**
+ * ARQUIVO: server.ts
+ * DESCRIÇÃO: Entry point principal para DESENVOLVIMENTO LOCAL.
+ * Este arquivo configura o servidor Express junto com o Vite Middleware 
+ * para HMR (Hot Module Replacement) e inicia o loop local de lembretes.
+ */
+
 import express from 'express';
 import app from './src/server/app';
 import { createServer as createViteServer } from 'vite';

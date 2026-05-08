@@ -4,14 +4,31 @@ import bcrypt from 'bcryptjs';
 import { generateToken, authenticate, AuthRequest, authorize } from '../lib/auth';
 import { syncAssignedAlertOpsAlerts } from '../services/alertops/alertops-sync.service';
 
+/**
+ * ARQUIVO: src/server/app.ts
+ * DESCRIÇÃO: Configuração central da aplicação Express. 
+ * Este arquivo isola a lógica de rotas e middlewares para permitir o uso 
+ * tanto no servidor local quanto como Serverless Function na Vercel.
+ */
+
 const app = express();
 app.use(express.json());
 
 // --- PUBLIC API ---
+
+/**
+ * Rota de Health Check
+ * Verifica se a API está online e respondendo.
+ */
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+/**
+ * Registro de Usuário e Organização (Tenant)
+ * Cria um novo tenant se join_code não for fornecido, ou associa o usuário 
+ * a um tenant existente caso o código seja válido.
+ */
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, tenant_name, join_code } = req.body;
   try {
@@ -32,6 +49,7 @@ app.post('/api/auth/register', async (req, res) => {
       tenantId = existingTenant.id;
       userRole = 'OPERATOR';
     } else {
+      // Criação de novo Tenant (Organização)
       const slug = (tenant_name || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
       const tenant = await prisma.tenant.create({
         data: {
@@ -42,6 +60,7 @@ app.post('/api/auth/register', async (req, res) => {
       });
       tenantId = tenant.id;
 
+      // Inicializa colunas padrão para o novo Kanban
       await prisma.cardStatus.createMany({
         data: [
           { tenant_id: tenantId, name: 'Aguardando', slug: 'backlog', color: '#64748b', position: 0, is_initial: true },
@@ -77,6 +96,10 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+/**
+ * Login de Usuário
+ * Valida credenciais e retorna um token JWT.
+ */
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -101,11 +124,18 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// --- PROTECTED API ---
+// --- PROTECTED API (Middleware 'authenticate' obrigatório) ---
+
+/**
+ * Retorna dados do usuário autenticado
+ */
 app.get('/api/auth/me', authenticate, async (req: AuthRequest, res) => {
   res.json({ user: req.user });
 });
 
+/**
+ * Lista usuários da mesma organização (Tenant)
+ */
 app.get('/api/users', authenticate, async (req: AuthRequest, res) => {
   try {
     const users = await prisma.user.findMany({
@@ -118,6 +148,9 @@ app.get('/api/users', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * Cria novo usuário (Apenas ADMIN)
+ */
 app.post('/api/users', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { name, email, password, role } = req.body;
   try {
@@ -144,6 +177,9 @@ app.post('/api/users', authenticate, authorize(['ADMIN']), async (req: AuthReque
   }
 });
 
+/**
+ * Atualiza usuário (Apenas ADMIN)
+ */
 app.patch('/api/users/:id', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { name, role } = req.body;
@@ -160,6 +196,9 @@ app.patch('/api/users/:id', authenticate, authorize(['ADMIN']), async (req: Auth
   }
 });
 
+/**
+ * Remove usuário (Apenas ADMIN)
+ */
 app.delete('/api/users/:id', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
@@ -177,6 +216,10 @@ app.delete('/api/users/:id', authenticate, authorize(['ADMIN']), async (req: Aut
 });
 
 // KANBAN CARDS
+
+/**
+ * Busca informações da Organização (Tenant)
+ */
 app.get('/api/tenant/info', authenticate, async (req: AuthRequest, res) => {
   try {
     const tenant = await prisma.tenant.findUnique({
@@ -189,6 +232,9 @@ app.get('/api/tenant/info', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * Atualiza configurações da Organização (Apenas ADMIN)
+ */
 app.patch('/api/tenant/info', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { name, code } = req.body;
   try {
@@ -215,12 +261,16 @@ app.patch('/api/tenant/info', authenticate, authorize(['ADMIN']), async (req: Au
   }
 });
 
+/**
+ * Lista Cards do Kanban com filtros (busca, data, criticidade, etc)
+ */
 app.get('/api/kanban/cards', authenticate, async (req: AuthRequest, res) => {
   try {
     const { search, from, to, criticidade, statusId, tag, integracao } = req.query;
     const where: any = { tenant_id: req.user!.tenant_id, archived_at: null };
     const andConditions: any[] = [];
 
+    // Filtro de Busca Textual (Título, Thread ID, Source, Owner, Assigned User)
     if (search && search !== '') {
       andConditions.push({
         OR: [
@@ -272,6 +322,7 @@ app.get('/api/kanban/cards', authenticate, async (req: AuthRequest, res) => {
       take: 200
     });
     
+    // Calcula progresso de checklist para cada card
     const cardsWithChecklistInfo = await Promise.all(cards.map(async (card) => {
       const doneCount = await prisma.cardChecklist.count({
         where: { card_id: card.id, is_done: true }
@@ -285,6 +336,9 @@ app.get('/api/kanban/cards', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * Lista Status (Colunas) do Kanban
+ */
 app.get('/api/kanban/statuses', authenticate, async (req: AuthRequest, res) => {
   try {
     const statuses = await prisma.cardStatus.findMany({
@@ -297,6 +351,9 @@ app.get('/api/kanban/statuses', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * Cria novo Status (Apenas ADMIN)
+ */
 app.post('/api/kanban/statuses', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { name, color, position, is_initial, is_final } = req.body;
   try {
@@ -314,6 +371,9 @@ app.post('/api/kanban/statuses', authenticate, authorize(['ADMIN']), async (req:
   }
 });
 
+/**
+ * Atualiza Status (Apenas ADMIN)
+ */
 app.patch('/api/kanban/statuses/:id', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { name, color, position, is_initial, is_final } = req.body;
@@ -328,6 +388,9 @@ app.patch('/api/kanban/statuses/:id', authenticate, authorize(['ADMIN']), async 
   }
 });
 
+/**
+ * Exclui Status (Apenas ADMIN - Bloqueia se houver cards)
+ */
 app.delete('/api/kanban/statuses/:id', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
@@ -346,6 +409,9 @@ app.delete('/api/kanban/statuses/:id', authenticate, authorize(['ADMIN']), async
   }
 });
 
+/**
+ * Reordena as colunas do Kanban
+ */
 app.post('/api/kanban/statuses/reorder', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { order } = req.body;
   try {
@@ -362,6 +428,9 @@ app.post('/api/kanban/statuses/reorder', authenticate, authorize(['ADMIN']), asy
   }
 });
 
+/**
+ * Lista nomes das integrações disponíveis (AlertOps)
+ */
 app.get('/api/alertops/integrations', authenticate, async (req: AuthRequest, res) => {
   try {
     const integrations = await prisma.alertopsAlert.findMany({
@@ -376,6 +445,9 @@ app.get('/api/alertops/integrations', authenticate, async (req: AuthRequest, res
   }
 });
 
+/**
+ * Detalhes de um Card específico
+ */
 app.get('/api/kanban/cards/:id', authenticate, async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
@@ -396,6 +468,9 @@ app.get('/api/kanban/cards/:id', authenticate, async (req: AuthRequest, res) => 
   }
 });
 
+/**
+ * Histórico de um Card (Eventos Internos + Eventos AlertOps)
+ */
 app.get('/api/kanban/cards/:id/history', authenticate, async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
@@ -415,6 +490,7 @@ app.get('/api/kanban/cards/:id/history', authenticate, async (req: AuthRequest, 
       old_value: h.old_value, new_value: h.new_value, created_at: h.created_at
     }));
 
+    // Busca eventos brutos da tabela alertops se houver thread_id
     let externalHistory: any[] = [];
     if (card.alertops_thread_id) {
       try {
@@ -423,7 +499,7 @@ app.get('/api/kanban/cards/:id/history', authenticate, async (req: AuthRequest, 
           WHERE "message_thread_id" = $1
           ORDER BY "created_date_local" DESC
         `, card.alertops_thread_id);
-        externalHistory = externalEvents.map((e, idx) => ({
+        externalHistory = externalHistory = externalEvents.map((e, idx) => ({
           id: `external-${idx}`, type: 'EXTERNAL', action: 'ALERTOPS_SYNC',
           status: e.message_thread_status_type, note: e.last_added_note,
           owner: e.owner_name, resolution: e.resolution,
@@ -441,6 +517,9 @@ app.get('/api/kanban/cards/:id/history', authenticate, async (req: AuthRequest, 
   }
 });
 
+/**
+ * Altera o status (coluna) de um card e registra no histórico
+ */
 app.patch('/api/kanban/cards/:id/status', authenticate, async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { status_id } = req.body;
@@ -465,6 +544,9 @@ app.patch('/api/kanban/cards/:id/status', authenticate, async (req: AuthRequest,
   }
 });
 
+/**
+ * Atribui ou remove usuário responsável por um card
+ */
 app.patch('/api/kanban/cards/:id/assign', authenticate, async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { user_id } = req.body;
@@ -488,6 +570,10 @@ app.patch('/api/kanban/cards/:id/assign', authenticate, async (req: AuthRequest,
 });
 
 // COMMENTS
+
+/**
+ * Lista comentários de um card
+ */
 app.get('/api/kanban/cards/:id/comments', authenticate, async (req: AuthRequest, res) => {
   try {
     const comments = await prisma.cardComment.findMany({
@@ -501,6 +587,9 @@ app.get('/api/kanban/cards/:id/comments', authenticate, async (req: AuthRequest,
   }
 });
 
+/**
+ * Adiciona comentário em um card com suporte a @menções
+ */
 app.post('/api/kanban/cards/:id/comments', authenticate, async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { comment, attachments } = req.body;
@@ -510,6 +599,8 @@ app.post('/api/kanban/cards/:id/comments', authenticate, async (req: AuthRequest
       include: { user: { select: { name: true } } }
     });
     const card = await prisma.card.findUnique({ where: { id } });
+    
+    // Processamento de Menções (@usuario ou @todos)
     const mentionIds = new Set<string>();
     if (/@todos/i.test(comment) || comment.includes('data-id="todos"')) {
       const allUsers = await prisma.user.findMany({ 
@@ -522,6 +613,7 @@ app.post('/api/kanban/cards/:id/comments', authenticate, async (req: AuthRequest
     while ((match = mentionRegex.exec(comment)) !== null) {
       if (match[1] !== 'todos' && match[1] !== req.user!.id) mentionIds.add(match[1]);
     }
+
     if (mentionIds.size > 0) {
       await prisma.notification.createMany({
         data: Array.from(mentionIds).map(userId => ({
@@ -531,6 +623,7 @@ app.post('/api/kanban/cards/:id/comments', authenticate, async (req: AuthRequest
         }))
       });
     }
+
     await prisma.cardHistory.create({
       data: { card_id: id, user_id: req.user!.id, action: 'COMMENT_ADDED', new_value: comment }
     });
@@ -540,6 +633,9 @@ app.post('/api/kanban/cards/:id/comments', authenticate, async (req: AuthRequest
   }
 });
 
+/**
+ * Atualiza um comentário (Apenas autor ou ADMIN)
+ */
 app.patch('/api/kanban/comments/:commentId', authenticate, async (req: AuthRequest, res) => {
   try {
     const existing = await prisma.cardComment.findUnique({ where: { id: req.params.commentId } });
@@ -556,6 +652,9 @@ app.patch('/api/kanban/comments/:commentId', authenticate, async (req: AuthReque
   }
 });
 
+/**
+ * Exclui um comentário (Apenas autor ou ADMIN)
+ */
 app.delete('/api/kanban/comments/:commentId', authenticate, async (req: AuthRequest, res) => {
   try {
     const existing = await prisma.cardComment.findUnique({ where: { id: req.params.commentId } });
@@ -569,6 +668,10 @@ app.delete('/api/kanban/comments/:commentId', authenticate, async (req: AuthRequ
 });
 
 // NOTIFICATIONS
+
+/**
+ * Lista notificações do usuário logado
+ */
 app.get('/api/notifications', authenticate, async (req: AuthRequest, res) => {
   try {
     const notifications = await prisma.notification.findMany({
@@ -582,6 +685,9 @@ app.get('/api/notifications', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * Marca uma notificação como lida
+ */
 app.patch('/api/notifications/:id/read', authenticate, async (req: AuthRequest, res) => {
   try {
     await prisma.notification.update({
@@ -594,6 +700,10 @@ app.patch('/api/notifications/:id/read', authenticate, async (req: AuthRequest, 
 });
 
 // CHECKLISTS
+
+/**
+ * Lista itens de checklist de um card
+ */
 app.get('/api/kanban/cards/:id/checklist', authenticate, async (req: AuthRequest, res) => {
   try {
     const items = await prisma.cardChecklist.findMany({
@@ -605,6 +715,9 @@ app.get('/api/kanban/cards/:id/checklist', authenticate, async (req: AuthRequest
   }
 });
 
+/**
+ * Adiciona item ao checklist de um card
+ */
 app.post('/api/kanban/cards/:id/checklist', authenticate, async (req: AuthRequest, res) => {
   try {
     const newItem = await prisma.cardChecklist.create({
@@ -616,6 +729,9 @@ app.post('/api/kanban/cards/:id/checklist', authenticate, async (req: AuthReques
   }
 });
 
+/**
+ * Atualiza item do checklist (título ou status concluído)
+ */
 app.patch('/api/kanban/checklist/:itemId', authenticate, async (req: AuthRequest, res) => {
   try {
     const updated = await prisma.cardChecklist.update({
@@ -627,6 +743,9 @@ app.patch('/api/kanban/checklist/:itemId', authenticate, async (req: AuthRequest
   }
 });
 
+/**
+ * Exclui item do checklist
+ */
 app.delete('/api/kanban/checklist/:itemId', authenticate, async (req: AuthRequest, res) => {
   try {
     await prisma.cardChecklist.delete({ where: { id: req.params.itemId } });
@@ -637,6 +756,10 @@ app.delete('/api/kanban/checklist/:itemId', authenticate, async (req: AuthReques
 });
 
 // LABELS
+
+/**
+ * Adiciona etiqueta (label) em um card
+ */
 app.post('/api/kanban/cards/:id/labels', authenticate, async (req: AuthRequest, res) => {
   try {
     const label = await prisma.cardLabel.create({
@@ -648,6 +771,9 @@ app.post('/api/kanban/cards/:id/labels', authenticate, async (req: AuthRequest, 
   }
 });
 
+/**
+ * Remove etiqueta de um card
+ */
 app.delete('/api/kanban/labels/:labelId', authenticate, async (req: AuthRequest, res) => {
   try {
     await prisma.cardLabel.delete({ where: { id: req.params.labelId } });
@@ -658,6 +784,10 @@ app.delete('/api/kanban/labels/:labelId', authenticate, async (req: AuthRequest,
 });
 
 // GROUPS
+
+/**
+ * Lista grupos de alertas (Agrupamento de cards correlacionados)
+ */
 app.get('/api/kanban/groups', authenticate, async (req: AuthRequest, res) => {
   try {
     const groups = await prisma.alertGroup.findMany({
@@ -671,6 +801,9 @@ app.get('/api/kanban/groups', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * Cria um novo grupo e associa cards a ele
+ */
 app.post('/api/kanban/groups', authenticate, async (req: AuthRequest, res) => {
   try {
     const group = await prisma.alertGroup.create({
@@ -693,6 +826,9 @@ app.post('/api/kanban/groups', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * Remove um grupo (Os cards continuam existindo, apenas perdem o vínculo)
+ */
 app.delete('/api/kanban/groups/:id', authenticate, async (req: AuthRequest, res) => {
   try {
     await prisma.card.updateMany({ where: { group_id: req.params.id }, data: { group_id: null } });
@@ -704,6 +840,11 @@ app.delete('/api/kanban/groups/:id', authenticate, async (req: AuthRequest, res)
 });
 
 // INTERNAL / SYNC
+
+/**
+ * Rota interna para forçar a sincronização de alertas do banco raw (tclog_alertops)
+ * Exige INTERNAL_SYNC_TOKEN em produção.
+ */
 app.post('/api/internal/sync-alertops', async (req, res) => {
   const token = req.headers['x-sync-token'];
   if (token !== process.env.INTERNAL_SYNC_TOKEN && process.env.NODE_ENV === 'production') {
@@ -714,6 +855,10 @@ app.post('/api/internal/sync-alertops', async (req, res) => {
 });
 
 // METRICS
+
+/**
+ * Retorna as métricas principais do Dashboard e dados para gráficos
+ */
 app.get('/api/dashboard/metrics', authenticate, async (req: AuthRequest, res) => {
   const tenantId = req.user!.tenant_id;
   try {
@@ -725,7 +870,8 @@ app.get('/api/dashboard/metrics', authenticate, async (req: AuthRequest, res) =>
     const resolvedLast24h = await prisma.card.count({
       where: { tenant_id: tenantId, status: { is_final: true }, updated_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }
     });
-    // Criticidade
+
+    // Distribuição por Criticidade (Gráfico de Pizza)
     const cards = await prisma.card.findMany({
       where: { tenant_id: tenantId, archived_at: null },
       select: { criticidade: true }
@@ -740,7 +886,7 @@ app.get('/api/dashboard/metrics', authenticate, async (req: AuthRequest, res) =>
 
     const criticalityDistribution = Object.entries(criticalityCounts).map(([name, value]) => ({ name, value }));
 
-    // Volume por dia (últimos 7 dias)
+    // Volume por dia - últimos 7 dias (Gráfico de Barras)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
@@ -778,6 +924,10 @@ app.get('/api/dashboard/metrics', authenticate, async (req: AuthRequest, res) =>
 });
 
 // REMINDERS
+
+/**
+ * Lista lembretes configurados pelo usuário
+ */
 app.get('/api/reminders', authenticate, async (req: AuthRequest, res) => {
   try {
     const reminders = await prisma.reminder.findMany({
@@ -791,6 +941,9 @@ app.get('/api/reminders', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * Cria um novo lembrete com agendamento
+ */
 app.post('/api/reminders', authenticate, async (req: AuthRequest, res) => {
   try {
     const reminder = await prisma.reminder.create({
@@ -807,6 +960,11 @@ app.post('/api/reminders', authenticate, async (req: AuthRequest, res) => {
 });
 
 // VERCEL SPECIFIC: ROUTE FOR CRON REMINDERS
+
+/**
+ * Rota para Processamento de Lembretes (Triggered por Vercel Cron)
+ * Verifica lembretes vencidos e gera notificações internas.
+ */
 app.get('/api/internal/process-reminders', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
