@@ -191,12 +191,41 @@ function MetricCard({ title, value, icon, trend, color, description, iconColor }
 
   return (
     <div className="relative group/card">
+      <AnimatePresence>
+        {showTooltip && description && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="absolute bottom-full left-0 right-0 mb-3 px-4 py-3 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-800 z-[100] pointer-events-none backdrop-blur-md bg-opacity-95"
+          >
+            <div className="flex flex-col gap-1">
+              {description.includes(':') ? (
+                <>
+                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                    {description.split(':')[0]}
+                  </p>
+                  <p className="text-[10px] font-medium text-slate-300 leading-relaxed normal-case">
+                    {description.split(':')[1].trim()}
+                  </p>
+                </>
+              ) : (
+                <p className="text-[10px] font-medium text-white leading-relaxed">
+                  {description}
+                </p>
+              )}
+            </div>
+            <div className="absolute top-full left-6 border-8 border-transparent border-t-slate-900" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div 
         whileHover={{ y: -6, scale: 1.02 }}
         onHoverStart={() => setShowTooltip(true)}
         onHoverEnd={() => setShowTooltip(false)}
         transition={{ type: "spring", stiffness: 300 }}
-        className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between group cursor-default h-[160px] relative overflow-hidden"
+        className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between group cursor-default h-[160px] relative"
       >
         <div className="flex items-center justify-between mb-3">
           <div className={cn("p-2 rounded-xl border shadow-sm transition-colors", color || "bg-white", !color && "border-slate-100")}>
@@ -216,21 +245,6 @@ function MetricCard({ title, value, icon, trend, color, description, iconColor }
           </div>
           <p className="text-3xl font-black text-slate-900 tracking-tighter">{value}</p>
         </div>
-
-        <AnimatePresence>
-          {showTooltip && description && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute inset-0 bg-slate-900/95 backdrop-blur-sm p-4 flex items-center justify-center text-center z-10"
-            >
-              <p className="text-[10px] font-bold text-white uppercase tracking-tight leading-relaxed">
-                {description}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
     </div>
   );

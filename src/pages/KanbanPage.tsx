@@ -549,13 +549,26 @@ export default function KanbanPage() {
       {/* Quick Stats Footer */}
       <footer className="h-12 bg-white border-t border-slate-200 px-8 flex items-center justify-between shrink-0">
         <div className="flex gap-6">
-          <div className="flex items-center gap-2">
+          {/* MTTR Tooltip */}
+          <div className="group relative flex items-center gap-2 cursor-help">
             <div className="w-2 h-2 rounded-full bg-[#008542]"></div>
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">MTTR Médio: 18min</span>
+            <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-slate-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none shadow-xl border border-slate-800 translate-y-1 group-hover:translate-y-0">
+              <p className="font-bold mb-0.5 text-emerald-400">Mean Time To Resolution</p>
+              <p className="text-slate-400 text-[9px]">Média de tempo entre a abertura e o fechamento dos cards.</p>
+              <div className="absolute top-full left-4 border-8 border-transparent border-t-slate-900"></div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* SLA Tooltip */}
+          <div className="group relative flex items-center gap-2 cursor-help">
             <div className="w-2 h-2 rounded-full bg-amber-400"></div>
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Conformidade SLA: 94%</span>
+            <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-slate-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none shadow-xl border border-slate-800 translate-y-1 group-hover:translate-y-0">
+              <p className="font-bold mb-0.5 text-amber-400">Service Level Agreement</p>
+              <p className="text-slate-400 text-[9px]">Percentual de alertas atendidos dentro do prazo estipulado.</p>
+              <div className="absolute top-full left-4 border-8 border-transparent border-t-slate-900"></div>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4 text-[10px] font-medium text-slate-400">
@@ -2199,6 +2212,27 @@ function ActionTab({ icon, label }: { icon: React.ReactNode, label: string }) {
   );
 }
 
+/**
+ * Componente de Tooltip Customizado para Gráficos (Estilo Premium)
+ */
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-800 animate-in fade-in zoom-in duration-300 backdrop-blur-md bg-opacity-95">
+        <p className="text-[10px] font-black uppercase tracking-widest mb-2 text-emerald-400 flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+          {label || payload[0].name}
+        </p>
+        <div className="flex items-center justify-between gap-8">
+          <span className="text-slate-400 text-[10px] font-bold uppercase">Volume:</span>
+          <span className="text-sm font-black">{payload[0].value} <span className="text-[10px] text-slate-500 font-normal">Alertas</span></span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 function ChartsView({ cards, statuses }: { cards: any[], statuses: any[] }) {
   const criticalityData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -2253,8 +2287,8 @@ function ChartsView({ cards, statuses }: { cards: any[], statuses: any[] }) {
                 tick={{ fill: '#64748b' }}
               />
               <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                cursor={{ fill: '#f8fafc' }}
+                content={<CustomTooltip />}
+                cursor={{ fill: '#f8fafc', radius: 4 }}
               />
               <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
                 {criticalityData.map((entry, index) => (
@@ -2286,9 +2320,7 @@ function ChartsView({ cards, statuses }: { cards: any[], statuses: any[] }) {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-              />
+              <Tooltip content={<CustomTooltip />} />
               <Legend 
                 verticalAlign="bottom" 
                 align="center"
