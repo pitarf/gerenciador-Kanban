@@ -12,6 +12,7 @@ import KanbanPage from './pages/KanbanPage';
 import MetricsPage from './pages/MetricsPage';
 import SettingsPage from './pages/SettingsPage';
 import RemindersPage from './pages/RemindersPage';
+import NotificationsPage from './pages/NotificationsPage';
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="metrics" element={<MetricsPage />} />
             <Route path="kanban" element={<KanbanPage />} />
             <Route path="reminders" element={<RemindersPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 

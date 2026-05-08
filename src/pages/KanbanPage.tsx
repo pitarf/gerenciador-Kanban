@@ -64,7 +64,7 @@ import {
   ExternalLink, User as UserIcon, MessageSquare, History, CheckSquare, X, Link, Bell,
   LayoutGrid, Send, Paperclip, MoreHorizontal, Edit2, Trash2, Image as ImageIcon, 
   FileText, FileArchive, Music, Video, FileBarChart2 as FileSpreadsheet, FileQuestion,
-  ArrowRight, RefreshCw, Layers
+  ArrowRight, RefreshCw, Layers, CheckCircle2
 } from 'lucide-react';
 import { kanbanService } from '../services/kanbanService';
 import { reminderService } from '../services/reminderService';
@@ -99,6 +99,15 @@ const getCriticalityColors = (criticality?: string) => {
     default:
       return { border: 'border-l-slate-200', badge: 'bg-slate-50 text-slate-500', text: 'text-slate-500' };
   }
+};
+
+const getFriendlyLinkLabel = (url: string) => {
+  if (!url) return '';
+  const lowUrl = url.toLowerCase();
+  if (lowUrl.includes('powerbi.com')) return 'Ir para o Power BI';
+  if (lowUrl.includes('grafana')) return 'Ir para o Grafana';
+  if (lowUrl.includes('alertops')) return 'Ir para o AlertOps';
+  return url;
 };
 
 export default function KanbanPage() {
@@ -493,7 +502,7 @@ export default function KanbanPage() {
                  groupBy === 'group' ? "bg-amber-500 text-white hover:bg-amber-600" : "bg-[#008542] text-white hover:bg-green-800"
                )}
              >
-                {groupBy === 'group' ? 'Agrupado por Balde' : 'Agrupar por Balde'}
+                {groupBy === 'group' ? 'Ver por Status' : 'Visão Agrupamento'}
              </button>
           </div>
       </div>
@@ -513,25 +522,16 @@ export default function KanbanPage() {
                   />
                 ))
               ) : (
-                <>
-                  {alertGroups.map((group, idx) => (
-                    <KanbanColumn 
-                      key={`${group.id || 'group'}-${idx}`} 
-                      title={group.name}
-                      id={group.id}
-                      cards={filteredCards.filter(c => c.group_id === group.id)} 
-                      onCardClick={handleCardClick}
-                      onDelete={() => setGroupToDelete({ id: group.id, name: group.name })}
-                    />
-                  ))}
+                alertGroups.map((group, idx) => (
                   <KanbanColumn 
-                    key="no-group" 
-                    title="Sem Balde"
-                    id="no-group"
-                    cards={filteredCards.filter(c => !c.group_id)} 
+                    key={`${group.id || 'group'}-${idx}`} 
+                    title={group.name}
+                    id={group.id}
+                    cards={filteredCards.filter(c => c.group_id === group.id)} 
                     onCardClick={handleCardClick}
+                    onDelete={() => setGroupToDelete({ id: group.id, name: group.name })}
                   />
-                </>
+                ))
               )}
             </div>
           </DragDropContext>
@@ -588,6 +588,7 @@ export default function KanbanPage() {
             groups={alertGroups}
             allCards={filteredCards}
             onDeleteGroup={(id, name) => setGroupToDelete({ id, name })}
+            onCardClick={handleCardClick}
           />
         )}
         {groupToDelete && (
@@ -802,6 +803,7 @@ function KanbanCard({ card, isDragging }: { card: Card, isDragging: boolean }) {
 
 function RemindersTab({ cardId, users, prefilledTitle, onClearPrefill }: { cardId: string, users: any[], prefilledTitle?: string, onClearPrefill?: () => void }) {
   const queryClient = useQueryClient();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { data: reminders = [] } = useQuery({
     queryKey: ['reminders', cardId],
     queryFn: () => reminderService.getReminders(cardId)
@@ -843,6 +845,7 @@ function RemindersTab({ cardId, users, prefilledTitle, onClearPrefill }: { cardI
     mutationFn: (id: string) => reminderService.deleteReminder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders', cardId] });
+      setConfirmDeleteId(null);
     }
   });
 
@@ -1007,7 +1010,7 @@ function RemindersTab({ cardId, users, prefilledTitle, onClearPrefill }: { cardI
       </div>
 
       <div className="space-y-3">
-        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lembretes Pendentes</h4>
+        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lembretes Aguardando</h4>
         {reminders.length === 0 ? (
           <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
             <Bell size={24} className="mx-auto text-slate-300 mb-2" />
@@ -1043,12 +1046,32 @@ function RemindersTab({ cardId, users, prefilledTitle, onClearPrefill }: { cardI
                   {formatDistanceToNow(new Date(reminder.due_at), { addSuffix: true, locale: ptBR })}
                 </p>
               </div>
-              <button 
-                onClick={() => deleteReminderMutation.mutate(reminder.id)}
-                className="p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-              >
-                <Trash2 size={14} />
-              </button>
+              <div className="flex items-center gap-2">
+                {confirmDeleteId === reminder.id ? (
+                  <div className="flex items-center gap-1.5 animate-in slide-in-from-right-2">
+                    <span className="text-[9px] font-black text-red-500 uppercase tracking-tighter">Excluir?</span>
+                    <button 
+                      onClick={() => deleteReminderMutation.mutate(reminder.id)}
+                      className="p-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                    >
+                      <CheckCircle2 size={12} />
+                    </button>
+                    <button 
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="p-1 bg-slate-200 text-slate-500 rounded-md hover:bg-slate-300 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setConfirmDeleteId(reminder.id)}
+                    className="p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
             </div>
           ))
         )}
@@ -1057,7 +1080,7 @@ function RemindersTab({ cardId, users, prefilledTitle, onClearPrefill }: { cardI
   );
 }
 
-function GroupsTab({ card, groups, onRefresh, allCards, onDeleteGroup }: { card: any, groups: any[], onRefresh: () => void, allCards: any[], onDeleteGroup?: (id: string, name: string) => void }) {
+function GroupsTab({ card, groups, onRefresh, allCards, onDeleteGroup, onCardClick }: { card: any, groups: any[], onRefresh: () => void, allCards: any[], onDeleteGroup?: (id: string, name: string) => void, onCardClick: (card: any) => void }) {
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -1146,9 +1169,19 @@ function GroupsTab({ card, groups, onRefresh, allCards, onDeleteGroup }: { card:
                     <p className="text-sm font-bold text-slate-700 truncate">{c.title}</p>
                     <p className="text-[10px] text-slate-400 font-medium">#{c.alertops_alert?.alertops_thread_id || c.id.slice(-6)}</p>
                   </div>
-                  {c.id === card.id && (
-                    <span className="text-[8px] font-black bg-[#008542] text-white px-1.5 py-0.5 rounded uppercase tracking-tighter">Atual</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {c.id === card.id ? (
+                      <span className="text-[8px] font-black bg-[#008542] text-white px-1.5 py-0.5 rounded uppercase tracking-tighter">Atual</span>
+                    ) : (
+                      <button 
+                        onClick={() => onCardClick(c)}
+                        className="p-2 hover:bg-slate-50 rounded-full text-[#008542] transition-all hover:scale-110"
+                        title="Ver detalhes deste card"
+                      >
+                        <ExternalLink size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               {groupCards.length === 0 && (
@@ -1255,7 +1288,7 @@ function GroupsTab({ card, groups, onRefresh, allCards, onDeleteGroup }: { card:
   );
 }
 
-function CardDetailDrawer({ card, onClose, groups, allCards, onDeleteGroup }: { card: Card, onClose: () => void, groups: any[], allCards: any[], onDeleteGroup?: (id: string, name: string) => void }) {
+function CardDetailDrawer({ card, onClose, groups, allCards, onDeleteGroup, onCardClick }: { card: Card, onClose: () => void, groups: any[], allCards: any[], onDeleteGroup?: (id: string, name: string) => void, onCardClick: (card: Card) => void }) {
   const queryClient = useQueryClient();
   const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   const isAdmin = currentUser.role === 'ADMIN';
@@ -1279,8 +1312,8 @@ function CardDetailDrawer({ card, onClose, groups, allCards, onDeleteGroup }: { 
   });
 
   const { data: users = [] } = useQuery({
-     queryKey: ['users'],
-     queryFn: kanbanService.getUsers
+     queryKey: ['users', 'active'],
+     queryFn: () => kanbanService.getUsers(true)
   });
 
   const { data: checklist = [], isLoading: loadingChecklist } = useQuery({
@@ -1830,9 +1863,9 @@ function CardDetailDrawer({ card, onClose, groups, allCards, onDeleteGroup }: { 
                             href={card.alertops_alert.topic} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:underline flex items-center gap-1 font-medium break-all"
+                            className="text-sm text-blue-600 hover:underline flex items-center gap-1 font-bold break-all"
                           >
-                             {card.alertops_alert.topic} <ExternalLink size={14} className="inline shrink-0" />
+                             {getFriendlyLinkLabel(card.alertops_alert.topic)} <ExternalLink size={14} className="inline shrink-0" />
                           </a>
                        ) : (
                           <p className="text-sm text-slate-800 leading-relaxed font-semibold italic">{card.alertops_alert?.topic || 'Sem tópico'}</p>
@@ -1847,7 +1880,7 @@ function CardDetailDrawer({ card, onClose, groups, allCards, onDeleteGroup }: { 
                             rel="noopener noreferrer"
                             className="text-sm text-blue-600 hover:underline flex items-center gap-1 font-medium break-all"
                           >
-                             {card.description} <ExternalLink size={14} className="inline shrink-0" />
+                             {getFriendlyLinkLabel(card.description)} <ExternalLink size={14} className="inline shrink-0" />
                           </a>
                        ) : (
                           <p className="text-sm text-slate-600 leading-relaxed break-words">{card.description || 'Sem descrição adicional'}</p>
@@ -2175,6 +2208,7 @@ function CardDetailDrawer({ card, onClose, groups, allCards, onDeleteGroup }: { 
               onRefresh={() => queryClient.invalidateQueries({ queryKey: ['cards'] })} 
               allCards={allCards}
               onDeleteGroup={onDeleteGroup}
+              onCardClick={onCardClick}
             />
           )}
         </div>

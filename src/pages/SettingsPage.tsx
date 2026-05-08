@@ -71,6 +71,108 @@ function CustomSelect({ value, onChange, options, label }: { value: string, onCh
   );
 }
 
+function UserListItem({ user, updateUserMutation, deleteUserMutation, confirmDeleteUserId, setConfirmDeleteUserId }: { 
+  user: any, 
+  updateUserMutation: any, 
+  deleteUserMutation: any, 
+  confirmDeleteUserId: string | null, 
+  setConfirmDeleteUserId: (id: string | null) => void 
+}) {
+  return (
+    <div key={user.id} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-xl group transition-all shadow-sm">
+      <div className="w-10 h-10 rounded-full bg-[#f0f9f4] flex items-center justify-center text-[#008542] border border-[#008542]/10 font-black text-xs">
+        {user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">{user.name}</h4>
+          <span className={cn(
+            "text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest",
+            user.role === 'ADMIN' ? "bg-red-100 text-red-600" : user.role === 'MANAGER' ? "bg-blue-100 text-blue-600" : "bg-slate-200 text-slate-600"
+          )}>
+            {user.role}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 mt-1">
+          <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+            <Mail size={12} /> {user.email}
+          </span>
+          <span className="text-slate-200">|</span>
+          <span className={cn(
+            "flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter",
+            user.is_active !== false ? "text-slate-400" : "text-red-500"
+          )}>
+            {user.is_active !== false ? <ShieldCheck size={12} /> : <X size={12} />} 
+            {user.is_active !== false ? 'Membro Ativo' : 'Acesso Desativado'}
+          </span>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-4 w-48">
+        <CustomSelect 
+          value={user.role}
+          onChange={(val) => updateUserMutation.mutate({ id: user.id, data: { role: val } })}
+          options={[
+            { value: 'OPERATOR', label: 'OPERADOR' },
+            { value: 'MANAGER', label: 'GESTOR' },
+            { value: 'ADMIN', label: 'ADMIN' },
+          ]}
+        />
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className={cn("text-[8px] font-black uppercase tracking-widest", user.is_active !== false ? "text-[#008542]" : "text-slate-400")}>
+              {user.is_active !== false ? 'Ativo' : 'Inativo'}
+            </span>
+            <button 
+              onClick={() => updateUserMutation.mutate({ id: user.id, data: { is_active: user.is_active === false } })}
+              className={cn(
+                "w-9 h-5 rounded-full relative transition-colors duration-300 outline-none",
+                user.is_active !== false ? "bg-[#008542]" : "bg-slate-300"
+              )}
+            >
+              <div className={cn(
+                "absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform duration-300 shadow-sm",
+                user.is_active !== false ? "translate-x-4" : "translate-x-0"
+              )} />
+            </button>
+          </div>
+
+          {confirmDeleteUserId === user.id ? (
+            <div className="flex flex-col gap-2 p-2 bg-red-50 border border-red-100 rounded-lg animate-in slide-in-from-right-2">
+              <p className="text-[8px] font-bold text-red-600 uppercase leading-tight max-w-[150px]">
+                Atenção: A exclusão física falhará se o usuário possuir histórico. Prefira desativar.
+              </p>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => deleteUserMutation.mutate(user.id)}
+                  className="p-1 px-3 bg-red-600 text-white text-[9px] font-black rounded uppercase shadow-sm hover:bg-red-700"
+                >
+                  EXCLUIR
+                </button>
+                <button 
+                  onClick={() => setConfirmDeleteUserId(null)}
+                  className="p-1 px-3 bg-slate-200 text-slate-600 text-[9px] font-black rounded uppercase hover:bg-slate-300"
+                >
+                  NÃO
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setConfirmDeleteUserId(user.id)}
+              className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+              title="Excluir Permanentemente"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'geral' | 'kanban' | 'users' | 'integrations'>('geral');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -113,6 +215,7 @@ export default function SettingsPage() {
   const [tempCode, setTempCode] = useState('');
   const [isEditingTenantName, setIsEditingTenantName] = useState(false);
   const [tempTenantName, setTempTenantName] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -260,22 +363,25 @@ export default function SettingsPage() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/users/${id}`, {
+      const res = await fetch(`/api/users/${id}?hard=true`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Falha ao remover usuário');
+        throw new Error(err.error || 'Falha ao excluir usuário permanentemente');
       }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Usuário removido da unidade.');
+      toast.success('Usuário removido permanentemente.');
       setConfirmDeleteUserId(null);
     },
-    onError: (error: Error) => toast.error(error.message)
+    onError: (error: Error) => {
+      console.error('Erro na deleção:', error);
+      toast.error(error.message || 'Erro inesperado ao remover usuário.');
+    }
   });
 
   const updateTenantMutation = useMutation({
@@ -378,37 +484,37 @@ export default function SettingsPage() {
         <div className="md:col-span-3 space-y-6">
            {activeTab === 'geral' && (
              <div className="space-y-6 animate-in fade-in duration-300">
-               <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Informações do Tenant</h3>
-                    <div className="px-3 py-1 bg-[#f0f9f4] text-[#008542] text-[10px] font-black rounded-full uppercase tracking-widest border border-[#008542]/20">
-                      Unidade Ativa
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div>
-                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome da Unidade / Empresa</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            readOnly={!isEditingTenantName}
-                            value={isEditingTenantName ? tempTenantName : (tenantInfo?.name || "Carregando...")} 
-                            onChange={(e) => setTempTenantName(e.target.value)}
-                            className={cn(
-                              "flex-1 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-semibold italic text-slate-600 outline-none",
-                              isEditingTenantName && "bg-white border-[#008542] ring-1 ring-[#008542]"
-                            )} 
-                          />
-                          {isEditingTenantName ? (
-                            <div className="flex gap-1">
-                              <button onClick={() => updateTenantMutation.mutate({ name: tempTenantName })} className="p-2.5 bg-[#008542] text-white rounded-lg hover:bg-[#006b35] transition-colors">
-                                <Save size={14} />
-                              </button>
-                              <button onClick={() => setIsEditingTenantName(false)} className="p-2.5 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-colors">
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ) : (
+             <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-6">Informações da Unidade</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div>
+                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome da Organização</label>
+                      <div className="flex items-center gap-2">
+                        {isEditingTenantName ? (
+                          <div className="flex items-center gap-2 flex-1 animate-in slide-in-from-left-2">
+                            <input 
+                              type="text" 
+                              value={tempTenantName} 
+                              onChange={(e) => setTempTenantName(e.target.value)}
+                              className="flex-1 px-4 py-2.5 bg-white border-2 border-[#008542] rounded-lg text-xs font-bold text-slate-900 outline-none"
+                              autoFocus
+                            />
+                            <button 
+                              onClick={() => updateTenantMutation.mutate({ name: tempTenantName })}
+                              className="p-2.5 bg-[#008542] text-white rounded-lg hover:bg-[#006b35]"
+                            >
+                              <Save size={16} />
+                            </button>
+                            <button 
+                              onClick={() => setIsEditingTenantName(false)}
+                              className="p-2.5 bg-slate-200 text-slate-500 rounded-lg"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <input type="text" readOnly value={tenantInfo?.name || "Carregando..."} className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-slate-800 outline-none" />
                             <button 
                               onClick={() => {
                                 setTempTenantName(tenantInfo?.name || '');
@@ -418,101 +524,86 @@ export default function SettingsPage() {
                             >
                               <Plus size={14} className="rotate-45" />
                             </button>
-                          )}
-                        </div>
-                     </div>
-                     <div>
-                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Slug do Sistema</label>
-                        <input type="text" readOnly value={tenantInfo?.slug || "Carregando..."} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-mono text-slate-400 outline-none" />
-                     </div>
-                  </div>
-                  <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
-                        <Users className="text-[#008542]" size={20} />
+                          </>
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Código de Convite</h4>
-                            <p className="text-[10px] text-slate-500 mt-0.5">Membros precisam deste código para se registrar nesta unidade.</p>
+                   </div>
+                   <div>
+                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Slug do Sistema</label>
+                      <input type="text" readOnly value={tenantInfo?.slug || "Carregando..."} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-mono text-slate-400 outline-none" />
+                   </div>
+                </div>
+                <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+                      <Users className="text-[#008542]" size={20} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Código de Convite</h4>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Membros precisam deste código para se registrar nesta unidade.</p>
+                        </div>
+                        {!isEditingCode && (
+                          <button 
+                            onClick={() => {
+                              setTempCode(tenantInfo?.code || '');
+                              setIsEditingCode(true);
+                            }}
+                            className="text-[9px] font-black text-[#008542] uppercase tracking-widest hover:underline"
+                          >
+                            Alterar Código
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="mt-3 flex items-center gap-3">
+                        {isEditingCode ? (
+                          <div className="flex items-center gap-2 flex-1 max-w-xs animate-in slide-in-from-left-2">
+                            <input 
+                              type="text" 
+                              value={tempCode} 
+                              onChange={(e) => setTempCode(e.target.value.toUpperCase())}
+                              className="flex-1 px-4 py-2 bg-white border-2 border-[#008542] rounded-lg text-lg font-black tracking-[0.2em] text-[#008542] outline-none"
+                              autoFocus
+                            />
+                            <button 
+                              onClick={() => updateTenantMutation.mutate({ code: tempCode })}
+                              className="p-2.5 bg-[#008542] text-white rounded-lg hover:bg-[#006b35] shadow-lg shadow-[#008542]/20"
+                            >
+                              <Save size={18} />
+                            </button>
+                            <button 
+                              onClick={() => setIsEditingCode(false)}
+                              className="p-2.5 bg-slate-200 text-slate-500 rounded-lg hover:bg-slate-300"
+                            >
+                              <X size={18} />
+                            </button>
                           </div>
-                          {!isEditingCode && (
+                        ) : (
+                          <>
+                            <code className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-lg font-black tracking-[0.2em] text-[#008542]">
+                              {tenantInfo?.code || "------"}
+                            </code>
                             <button 
                               onClick={() => {
-                                setTempCode(tenantInfo?.code || '');
-                                setIsEditingCode(true);
+                                navigator.clipboard.writeText(tenantInfo?.code || '');
+                                toast.success('Código copiado!');
                               }}
-                              className="text-[9px] font-black text-[#008542] uppercase tracking-widest hover:underline"
+                              className="p-2.5 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all text-slate-400 hover:text-[#008542]"
+                              title="Copiar código"
                             >
-                              Alterar Código
+                              <Save size={16} />
                             </button>
-                          )}
-                        </div>
-                        
-                        <div className="mt-3 flex items-center gap-3">
-                          {isEditingCode ? (
-                            <div className="flex items-center gap-2 flex-1 max-w-xs animate-in slide-in-from-left-2">
-                              <input 
-                                type="text" 
-                                value={tempCode} 
-                                onChange={(e) => setTempCode(e.target.value.toUpperCase())}
-                                className="flex-1 px-4 py-2 bg-white border-2 border-[#008542] rounded-lg text-lg font-black tracking-[0.2em] text-[#008542] outline-none"
-                                autoFocus
-                              />
-                              <button 
-                                onClick={() => updateTenantMutation.mutate({ code: tempCode })}
-                                className="p-2.5 bg-[#008542] text-white rounded-lg hover:bg-[#006b35] shadow-lg shadow-[#008542]/20"
-                              >
-                                <Save size={18} />
-                              </button>
-                              <button 
-                                onClick={() => setIsEditingCode(false)}
-                                className="p-2.5 bg-slate-200 text-slate-500 rounded-lg hover:bg-slate-300"
-                              >
-                                <X size={18} />
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <code className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-lg font-black tracking-[0.2em] text-[#008542]">
-                                {tenantInfo?.code || "------"}
-                              </code>
-                              <button 
-                                onClick={() => {
-                                  navigator.clipboard.writeText(tenantInfo?.code || '');
-                                  toast.success('Código copiado!');
-                                }}
-                                className="p-2.5 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all text-slate-400 hover:text-[#008542]"
-                                title="Copiar código"
-                              >
-                                <Save size={16} />
-                              </button>
-                            </>
-                          )}
-                        </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
-               </section>
-
-               <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-6">Preferências de Exibição</h3>
-                  <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg mb-4 border border-slate-100">
-                     <div className="flex items-center gap-3">
-                        <Palette className="text-[#008542]" size={18} />
-                        <div>
-                           <p className="text-sm font-bold text-slate-800">Interface de Alto Contraste</p>
-                           <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">Otimizado para centros de controle</p>
-                        </div>
-                     </div>
-                     <div className="w-10 h-5 bg-slate-200 rounded-full relative">
-                        <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full shadow-sm" />
-                     </div>
-                  </div>
-               </section>
-             </div>
-           )}
+               </div>
+             </section>
+           </div>
+         )}
 
            {activeTab === 'kanban' && (
              <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
@@ -654,75 +745,83 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-                <div className="space-y-3">
-                  {isLoadingUsers ? (
-                    <p className="text-xs text-slate-400 font-bold uppercase italic">Sincronizando usuários...</p>
-                  ) : (
-                    users?.map((user: any) => (
-                      <div key={user.id} className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-100 rounded-xl group transition-all">
-                        <div className="w-10 h-10 rounded-full bg-[#f0f9f4] flex items-center justify-center text-[#008542] border border-[#008542]/10 font-black text-xs">
-                          {user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">{user.name}</h4>
-                            <span className={cn(
-                              "text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest",
-                              user.role === 'ADMIN' ? "bg-red-100 text-red-600" : user.role === 'MANAGER' ? "bg-blue-100 text-blue-600" : "bg-slate-200 text-slate-600"
-                            )}>
-                              {user.role}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 mt-1">
-                             <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                               <Mail size={12} /> {user.email}
-                             </span>
-                             <span className="text-slate-200">|</span>
-                             <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                               <ShieldCheck size={12} /> Membro Ativo
-                             </span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 w-48">
-                          <CustomSelect 
-                            value={user.role}
-                            onChange={(val) => updateUserMutation.mutate({ id: user.id, data: { role: val } })}
-                            options={[
-                              { value: 'OPERATOR', label: 'OPERADOR' },
-                              { value: 'MANAGER', label: 'GESTOR' },
-                              { value: 'ADMIN', label: 'ADMIN' },
-                            ]}
-                          />
+                <div className="space-y-6">
+                   {isLoadingUsers ? (
+                     <p className="text-xs text-slate-400 font-bold uppercase italic">Sincronizando usuários...</p>
+                   ) : (
+                     <>
+                       {/* MEMBROS ATIVOS */}
+                       <div className="space-y-3">
+                         <div className="flex items-center gap-2 mb-2">
+                           <ShieldCheck size={14} className="text-[#008542]" />
+                           <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Membros Ativos ({users?.filter((u: any) => u.is_active !== false).length})</h4>
+                         </div>
+                         {users?.filter((u: any) => u.is_active !== false).map((user: any) => (
+                           <UserListItem 
+                            key={user.id} 
+                            user={user} 
+                            updateUserMutation={updateUserMutation}
+                            deleteUserMutation={deleteUserMutation}
+                            confirmDeleteUserId={confirmDeleteUserId}
+                            setConfirmDeleteUserId={setConfirmDeleteUserId}
+                           />
+                         ))}
+                       </div>
 
-                          {confirmDeleteUserId === user.id ? (
-                            <div className="flex items-center gap-2 animate-in slide-in-from-right-2">
-                              <button 
-                                onClick={() => deleteUserMutation.mutate(user.id)}
-                                className="p-1 px-3 bg-red-500 text-white text-[9px] font-black rounded uppercase"
-                              >
-                                CONFIRMAR
-                              </button>
-                              <button 
-                                onClick={() => setConfirmDeleteUserId(null)}
-                                className="p-1 px-3 bg-slate-200 text-slate-600 text-[9px] font-black rounded uppercase"
-                              >
-                                CANCELAR
-                              </button>
-                            </div>
-                          ) : (
-                            <button 
-                              onClick={() => setConfirmDeleteUserId(user.id)}
-                              className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                       {/* MEMBROS ARQUIVADOS */}
+                       {users?.filter((u: any) => u.is_active === false).length > 0 && (
+                         <div className="mt-8 border-t border-slate-100 pt-6">
+                           <button 
+                             onClick={() => setShowArchived(!showArchived)}
+                             className="flex items-center justify-between w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors group"
+                           >
+                             <div className="flex items-center gap-2">
+                               <Trash2 size={14} className="text-slate-400" />
+                               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Membros Arquivados ({users?.filter((u: any) => u.is_active === false).length})</h4>
+                             </div>
+                             <ChevronRight size={16} className={cn("text-slate-300 transition-transform duration-300", showArchived && "rotate-90")} />
+                           </button>
+
+                           <AnimatePresence>
+                             {showArchived && (
+                               <motion.div 
+                                 initial={{ height: 0, opacity: 0 }}
+                                 animate={{ height: 'auto', opacity: 1 }}
+                                 exit={{ height: 0, opacity: 0 }}
+                                 className="overflow-hidden"
+                               >
+                                 <div className="space-y-3 pt-4">
+                                   {users?.filter((u: any) => u.is_active === false).map((user: any) => (
+                                     <UserListItem 
+                                      key={user.id} 
+                                      user={user} 
+                                      updateUserMutation={updateUserMutation}
+                                      deleteUserMutation={deleteUserMutation}
+                                      confirmDeleteUserId={confirmDeleteUserId}
+                                      setConfirmDeleteUserId={setConfirmDeleteUserId}
+                                     />
+                                   ))}
+                                 </div>
+                               </motion.div>
+                             )}
+                           </AnimatePresence>
+                         </div>
+                       )}
+                     </>
+                   )}
+                 </div>
+             </section>
+           )}
+
+           {activeTab === 'integrations' && (
+             <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
+               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-6">Integrações de API</h3>
+               <div className="p-8 border-2 border-dashed border-slate-100 rounded-2xl text-center">
+                 <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                   <Server size={20} className="text-slate-300" />
+                 </div>
+                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Módulo de integrações em desenvolvimento</p>
+               </div>
              </section>
            )}
 

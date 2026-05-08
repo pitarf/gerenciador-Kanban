@@ -32,3 +32,10 @@ A sincronização busca alertas com status `Assigned` na tabela `tclog_alertops.
 - **Comentários:** Todas as funções e rotas principais devem ser comentadas (padrão JSDoc em PT-BR).
 - **Segurança:** RBAC implementado via middleware `authorize(['ADMIN'])`.
 - **Banco:** Sempre usar migrations para alterações de schema.
+- **Integridade:** Operações financeiras ou de saldo devem usar transações Prisma.
+
+## Endpoints de API Principais (Gestão de Agrupamentos)
+- `POST /api/kanban/groups`: Cria um novo grupo.
+- `POST /api/kanban/groups/:id/add-cards`: Vincula cards a um grupo existente.
+- `POST /api/kanban/groups/:id/remove-cards`: Remove o vínculo de cards de um grupo.
+- `DELETE /api/kanban/groups/:id`: Remove o grupo (não exclui os cards).

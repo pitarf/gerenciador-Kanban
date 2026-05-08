@@ -106,8 +106,9 @@ export const kanbanService = {
     if (!res.ok) throw new Error('Falha ao excluir comentário');
   },
 
-  getUsers: async (): Promise<any[]> => {
-    const res = await fetch('/api/users', { headers: getAuthHeaders() });
+  getUsers: async (activeOnly: boolean = false): Promise<any[]> => {
+    const url = activeOnly ? '/api/users?active=true' : '/api/users';
+    const res = await fetch(url, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Falha ao carregar usuários');
     return res.json();
   },

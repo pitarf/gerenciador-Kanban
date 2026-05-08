@@ -1,123 +1,92 @@
-# Manual do Usuário - AlertOps
+# 📖 Manual do Usuário - AlertOps Kanban SaaS
 
-Bem-vindo ao **AlertOps**, a sua plataforma de gestão de operações, acompanhamento de alertas e controle de incidentes de TI e infraestrutura via quadros Kanban e painéis métricos avançados.
+Bem-vindo ao **AlertOps**, sua plataforma avançada para gestão de incidentes, monitoramento de alertas e controle operacional via quadros Kanban e painéis métricos inteligentes.
 
-Este manual descreve todas as funcionalidades da plataforma e guiará você sobre como configurá-las e utilizá-las no dia a dia.
-
----
-
-## Índice
-1. [Primeiros Passos (Autenticação e Acesso)](#1-primeiros-passos-autenticação-e-acesso)
-2. [Interface Principal e Menu Lateral](#2-interface-principal-e-menu-lateral)
-3. [Kanban Operacional (Gestão de Cards)](#3-kanban-operacional-gestão-de-cards)
-4. [Métricas (Visão Executiva)](#4-métricas-visão-executiva)
-5. [Lembretes](#5-lembretes)
-6. [Configurações do Sistema (Exclusivo para Administradores)](#6-configurações-do-sistema-exclusivo-para-administradores)
+Este manual guiará você por todas as funcionalidades, desde o acesso inicial até a configuração avançada do ambiente.
 
 ---
 
-## 1. Primeiros Passos (Autenticação e Acesso)
-
-Acesse a página de login para se autenticar ou criar uma conta.
-
-### Criar uma Nova Conta
-1. Clique em **"Cadastre-se"** na tela de login.
-2. Na página de cadastro, você tem duas opções no topo:
-   - **Criar Unidade:** Utilize esta opção se você é o primeiro integrante e deseja criar o ambiente (Tenant) da sua empresa do zero. Insira o nome da sua organização.
-   - **Entrar com Código:** Se a sua empresa já utiliza o AlertOps, solicite o **Código de Convite** ao administrador. Para criar conta como **TORRE**, deve usar o código **`TORRE26`**. Seu usuário será automaticamente vinculado à organização existente.
-3. Preencha seus dados de identificação (Nome, E-mail, Senha e Confirmação de senha) e crie a conta.
-
-### Login
-- Para acessar a plataforma no dia a dia, preencha o E-mail e Senha registrados na tela de acesso e você será direcionado para o Painel de Controle (Dashboard).
+## 📑 Índice
+1. [Acesso e Autenticação](#1-acesso-e-autenticação)
+2. [Interface e Navegação](#2-interface-e-navegação)
+3. [Kanban Operacional (O Coração do Sistema)](#3-kanban-operacional)
+4. [Central de Notificações](#4-central-de-notificações)
+5. [Gestão de Lembretes](#5-gestão-de-lembretes)
+6. [Métricas e Performance](#6-métricas-e-performance)
+7. [Configurações e Administração](#7-configurações-e-administração)
 
 ---
 
-## 2. Interface Principal e Menu Lateral
+## 🔐 1. Acesso e Autenticação
+O AlertOps utiliza um sistema de multi-inquilinato (Tenants). Você pode entrar em uma organização existente ou criar a sua própria.
 
-No modo logado (Dashboard), você possui um menu fixo na lateral com atalhos rápidos:
-- **Painel:** Visão geral.
-- **Métricas:** Relatórios e KPIs analíticos.
-- **Kanban Operacional:** O quadro visual de gerenciamento das operações (painel de tarefas).
-- **Lembretes:** Atalho para acessar todos os alarmes que você criou ou estão associados a você.
-- **Configurações:** Controle de ambiente (visível apenas para papel de sistema `ADMIN`).
-
-No menu lateral, você também pode visualizar informações do seu perfil, além da funcionalidade para desconectar da sessão ("Sair").
+- **Cadastro de Unidade:** Se sua empresa é nova no sistema, use esta opção para criar um ambiente isolado.
+- **Entrar com Código:** Use o **Código de Convite** fornecido pelo seu administrador para se vincular a uma equipe já existente.
+- **Segurança:** Todas as senhas são criptografadas e o acesso é protegido por tokens de sessão (JWT).
 
 ---
 
-## 3. Kanban Operacional (Gestão de Cards)
-
-O **Kanban Operacional** é o coração da plataforma. Ele permite que os times administrem alertas de monitoramento, requisições ou ordens de serviço.
-
-### Visões do Kanban
-O Kanban principal tem botões para alternar as metodologias de visão visual da tela (abas): **Kanban** (colunas), **Charts** (análise isolada do backlog) e **Agenda** (calendário em formato cronológico). Você também pode utilizar filtros rápidos por prioridade (CRÍTICO, ALERTA, INFO) e texto do card e selecionar etiquetas específicas para refinar a busca no topo.
-
-### Movendo Cards
-- Todos os cards abertos aparecerão enfileirados. 
-- Mude o status do card de uma coluna para outra (Ex: de "Aguardando" para "Em Atendimento") utilizando o simples clique e arrastamento (Drag & Drop) do card sobre as demais colunas do quadro.
-
-### Criando Cards e Grupos
-- Novos Grupos de Alertas/Cards podem ser criados, auxiliando para juntar ou associar alertas similares no quadro.
-
-### Detalhes do Card
-Ao clicar em qualquer Card, será aberto o popback (modal lateral) de **Detalhamento do Card**. Dentro dele você encontra:
-1. **Título, Status e Detalhes:** Possibilidade de visualizar de forma completa a descrição ou incidentes e dados vindos de integrações.
-2. **Prioridade:** (Crítico, Alerta, Sucesso, Info).
-3. **Responsável:** Associe a você ou outro membro da equipe à tarefa do card para clareza sobre quem está atuando no problema.
-4. **Agupamentos de Alertas:** Pode associar ativamente ou remover agrupamentos criados à este ticket.
-5. **Aba de Tags (Etiquetas):** Insira e diferencie labels (tags) com cores e textos personalizados para classificar os tipos de atividades (Ex: "Rede", "Software", "Físico").
-6. **Aba Checklist:** Crie listas de atividades para fechar o status do Card acompanhando passos minuciosos. Eles podem ser tidos como "concluídos" via caixa de seleção ou excluídos através do painel.
-7. **Aba de Comentários / Anexos:** Realize chat ou deixe anotações que todo o time conseguirá visualizar sobre do log de evento ou diagnóstico verificado do ticket.
-8. **Aba de Histórico (Auditoria):** Veja em "Histórico" uma cronologia exata sobre que horas e quem editou as configurações, ou moveu sua situação na linha cronológica, sendo possível o rastreio fino das mudanças que ocorreram naquele escopo.
+## 🎨 2. Interface e Navegação
+A interface foi projetada para ser intuitiva e rápida:
+- **Menu Lateral:** Acesso rápido ao Dashboard, Kanban, Lembretes e Configurações.
+- **Modo Escuro:** Alterne entre temas claro e escuro para melhor conforto visual.
+- **Busca Global:** Encontre qualquer alerta instantaneamente pelo título ou ID.
 
 ---
 
-## 4. Métricas (Visão Executiva)
+## 📋 3. Kanban Operacional
+Onde a operação acontece. Visualize e mova alertas entre diferentes estágios.
 
-Ao acessar **Métricas** pelo Menu Lateral, lideranças e operadores terão acesso ao consolidado dos eventos em painéis com gráficos amigáveis.
-Destaques numéricos do painel com **Dicas de Contexto ao sobrepor o mouse**:
-- **Alertas Assigned:** Indicador de alertas triados aguardando as ações devidas.
-- **Cards Abertos:** Somatório dos cartões ainda em acompanhamento no board.
-- **MTTR Médio:** *(Mean Time to Resolution)* CÁLCULO e apresentação do seu ritmo de resposta.
-- **SLA:** Conformidade geral com prazos estipulados em andamento de resolução.
-- **Cards Vencidos:** Total atrasados.
-- **Resolvidos:** Alertas completados no prazo rotineiro ou triados na última média.
+### Cards de Alerta
+Cada card contém informações vitais:
+- **Prioridade:** Identificada por cores (Crítico, Alerta, Info).
+- **Responsável:** Atribua cards a si mesmo ou a colegas.
+- **Ações Rápidas:** Links para ferramentas externas (Power BI, Grafana) são convertidos em botões amigáveis.
 
-Também no painel você tem Gráficos informando a dispersão de prioridades (Críticos/Gerais mensais).
-
----
-
-## 5. Lembretes
-
-Use este módulo se precisar ser notificado de voltar a observar um chamado depois, mas caso esqueça:
-- No pop-up de detalhes do Card ou no atalho Lembretes.
-- Visualize todas notificações em linha temporal e decida se irá focar no status atual listado do AlertOps ou postergar uma atividade com nova programação de horário para um agendamento.
-- Despache e gerencie Lembretes Concluídos.
-- É ideal para gerenciar interações com parceiros terceirizados ("Verificar atualização do fornecedor de link de dados").
+### Detalhes do Card (Gaveta Lateral)
+- **Checklists:** Divida a resolução em passos práticos.
+- **Comentários e Menções:** Use `@nome` para notificar alguém específico ou `@todos` para alertar toda a equipe do card.
+- **Anexos:** Envie logs, prints e documentos diretamente para o card.
+- **Lembretes:** Agende alertas específicos para o card diretamente desta aba para não esquecer retornos importantes.
+- **Histórico (Auditoria):** Veja quem moveu o card, quando e quais alterações foram feitas.
 
 ---
 
-## 6. Configurações do Sistema (Exclusivo para Administradores)
+## 🔔 4. Central de Notificações
+Localizada no topo (ícone de sino), mantém você atualizado sem interromper seu fluxo.
 
-Usuários que detém o controle do cargo corporativo nível **"ADMIN"** possuem o atalho "Configurações" habilitado. Ele gerencia as premissas gerais do tenant com 4 guias principais.
+- **Filtros Rápidos:** Veja apenas o que não foi lido ou pesquise por termos específicos.
+- **Ler Tudo:** Botão para limpar suas notificações pendentes com um clique.
+- **Histórico de Notificações:** Uma página dedicada para revisar alertas passados, menções em comentários e atualizações de sistema.
 
-### Aba 1: Geral
-- **Nome da Unidade:** Mude livremente o identificador rotulado que toda a equipe lê, salvando as definições.
-- **Código de Convite:** Encontre, altere e copie o código numérico global ("ex: TRP-2026"). Este é o código necessário pelos seus Operadores no momento do registro.
+---
 
-### Aba 2: Colunas do Kanban
-- Controle integral do ciclo do Pipeline de Incidentes.
-- **Criar Coluna de Fluxo:** Determine nomes textuais (Ex: "Aguardando Chamado", "Triagem N1") com cores sólidas que facilitem o rastreio de visão para seus colaboradores.
-- **Editar e Renomear:** Modificando a qualquer tempo.
-- **Reordenar:** Aponte usando as setas para baixo / para cima.
-- **Mapear Indicadores Finais ou Iniciais:** Selecione "Marcar Inicial" e "Marcar Final". As métricas analisam cards que transitam nestes estados (Entrada para as métricas do card, "Finalizado" para encerramento de SLAs).
-- Apague seções obsoletas com o ícone excluir.
+## ⏰ 5. Gestão de Lembretes
+Ferramenta essencial para não esquecer de retornos ou verificações periódicas.
 
-### Aba 3: Usuários (Gestão de Equipe)
-- Listagem dos nomes, e-mails de acesso atuais da organização.
-- **Nível de Acesso:** Determine e Edite hierarquias da plataforma (`ADMIN`, `GESTOR`, `OPERADOR`).
-- **Adicionar Membros:** Alternativa rápida para forçar e registrar imediatamente membros passivos estipulando-os senhas manuais.
-- Utilize a lata de lixo "Excluir" para revogar as concessões gerais no login logado, banindo um acesso irregular de antigos colaboradores operacionais do seu tenant logico.
+- **Status "Aguardando":** Lembretes que ainda não venceram ou estão aguardando ação.
+- **Status "Concluídos":** Histórico de lembretes já processados.
+- **Agendamento Inteligente:** Defina prazos rápidos (+30m, +1h) ou datas customizadas.
+- **Segurança de Dados:** A exclusão de lembretes possui uma **confirmação visual** para evitar perda acidental de agendamentos importantes.
 
-### Aba 4: Integrações
-Gerencie interfaces e Webhooks que enviarão chamadas (Alertas) do seu monitoramento real na rede conectando em Webhooks nativos ou provedores via cloud nativa para ingestão proativa de ocorrências dentro do Dashboard / Kanban.
+---
+
+## 📈 6. Métricas e Performance
+Acompanhe a saúde da sua operação em tempo real.
+
+- **MTTR (Tempo Médio de Resolução):** Quanto tempo sua equipe leva, em média, para encerrar um alerta.
+- **Conformidade de SLA:** Porcentagem de incidentes resolvidos dentro do prazo acordado.
+- **Volume por Dia:** Gráficos que mostram os picos de incidentes durante a semana.
+
+---
+
+## ⚙️ 7. Configurações e Administração
+Reservado para usuários com nível **ADMIN**.
+
+- **Branding Personalizado:** Altere o nome da unidade, descrição do site e Favicon (ícone da aba do navegador).
+- **Gestão de Equipe:** Adicione novos membros, altere níveis de acesso ou desative usuários (preservando o histórico de ações).
+- **Estrutura do Kanban:** Crie, renomeie, reordene ou exclua colunas do seu fluxo de trabalho.
+- **Integrações:** Configure Webhooks para receber alertas automáticos de ferramentas externas.
+
+---
+*Manual atualizado em: 08 de Maio de 2026. Versão 2.5*

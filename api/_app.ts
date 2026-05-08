@@ -107,6 +107,11 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user || !user.password_hash) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
+    
+    if (user.is_active === false) {
+      return res.status(403).json({ error: 'Esta conta foi desativada. Entre em contato com o administrador.' });
+    }
+
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
@@ -138,10 +143,16 @@ app.get('/api/auth/me', authenticate, async (req: AuthRequest, res) => {
  * Lista usuários da mesma organização (Tenant)
  */
 app.get('/api/users', authenticate, async (req: AuthRequest, res) => {
+  const { active } = req.query;
   try {
+    const where: any = { tenant_id: req.user!.tenant_id };
+    if (active === 'true') {
+      where.is_active = true;
+    }
+
     const users = await prisma.user.findMany({
-      where: { tenant_id: req.user!.tenant_id },
-      select: { id: true, name: true, email: true, role: true, created_at: true }
+      where,
+      select: { id: true, name: true, email: true, role: true, created_at: true, is_active: true }
     });
     res.json(users);
   } catch (err) {
@@ -183,13 +194,13 @@ app.post('/api/users', authenticate, authorize(['ADMIN']), async (req: AuthReque
  */
 app.patch('/api/users/:id', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { name, role } = req.body;
-  try {
-    const user = await prisma.user.update({
-      where: { id, tenant_id: req.user!.tenant_id },
-      data: { name, role },
-      select: { id: true, name: true, email: true, role: true }
-    });
+    const { name, role, is_active } = req.body;
+    try {
+      const user = await prisma.user.update({
+        where: { id, tenant_id: req.user!.tenant_id },
+        data: { name, role, is_active },
+        select: { id: true, name: true, email: true, role: true, is_active: true }
+      });
     res.json(user);
   } catch (error) {
     console.error('SERVER ERROR [PATCH /api/users/:id]:', error);
@@ -202,17 +213,30 @@ app.patch('/api/users/:id', authenticate, authorize(['ADMIN']), async (req: Auth
  */
 app.delete('/api/users/:id', authenticate, authorize(['ADMIN']), async (req: AuthRequest, res) => {
   const { id } = req.params;
+  const isHardDelete = req.query.hard === 'true';
   try {
     if (id === req.user!.id) {
       return res.status(400).json({ error: 'Você não pode remover seu próprio acesso.' });
     }
-    await prisma.user.delete({
-      where: { id, tenant_id: req.user!.tenant_id }
-    });
-    res.json({ success: true });
+
+    if (isHardDelete) {
+      await prisma.user.delete({
+        where: { id, tenant_id: req.user!.tenant_id }
+      });
+      res.json({ success: true, message: 'Usuário removido permanentemente.' });
+    } else {
+      await prisma.user.update({
+        where: { id, tenant_id: req.user!.tenant_id },
+        data: { is_active: false }
+      });
+      res.json({ success: true, message: 'Usuário desativado com sucesso.' });
+    }
   } catch (error) {
-    console.error('SERVER ERROR [DELETE /api/users/:id]:', error);
-    res.status(500).json({ error: 'Falha ao remover usuário' });
+    console.error(`SERVER ERROR [DELETE /api/users/:id] (Hard=${isHardDelete}):`, error);
+    const msg = isHardDelete 
+      ? 'Falha ao excluir permanentemente. O usuário possui vínculos que impedem a remoção física. Use a desativação.' 
+      : 'Falha ao desativar usuário';
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -828,6 +852,90 @@ app.post('/api/kanban/groups', authenticate, async (req: AuthRequest, res) => {
 });
 
 /**
+ * Adiciona cards a um grupo existente
+ */
+app.post('/api/kanban/groups/:id/add-cards', authenticate, async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const { cardIds } = req.body;
+  
+  if (!cardIds || !Array.isArray(cardIds)) {
+    return res.status(400).json({ error: 'Lista de IDs de cards inválida' });
+  }
+
+  try {
+    const group = await prisma.$transaction(async (tx) => {
+      const g = await tx.alertGroup.update({
+        where: { id, tenant_id: req.user!.tenant_id },
+        data: {
+          cards: {
+            connect: cardIds.map((cardId: string) => ({ id: cardId }))
+          }
+        },
+        include: { cards: true }
+      });
+
+      await tx.cardHistory.createMany({
+        data: cardIds.map((cardId: string) => ({
+          card_id: cardId,
+          user_id: req.user!.id,
+          action: 'ADDED_TO_GROUP',
+          new_value: g.name
+        }))
+      });
+
+      return g;
+    });
+
+    res.json(group);
+  } catch (err) {
+    console.error('[ADD_CARDS_TO_GROUP_ERROR]:', err);
+    res.status(500).json({ error: 'Erro ao adicionar cards ao agrupamento' });
+  }
+});
+
+/**
+ * Remove cards de um grupo (Desvincula sem excluir o card)
+ */
+app.post('/api/kanban/groups/:id/remove-cards', authenticate, async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const { cardIds } = req.body;
+  
+  if (!cardIds || !Array.isArray(cardIds)) {
+    return res.status(400).json({ error: 'Lista de IDs de cards inválida' });
+  }
+
+  try {
+    const group = await prisma.$transaction(async (tx) => {
+      const g = await tx.alertGroup.update({
+        where: { id, tenant_id: req.user!.tenant_id },
+        data: {
+          cards: {
+            disconnect: cardIds.map((cardId: string) => ({ id: cardId }))
+          }
+        },
+        include: { cards: true }
+      });
+
+      await tx.cardHistory.createMany({
+        data: cardIds.map((cardId: string) => ({
+          card_id: cardId,
+          user_id: req.user!.id,
+          action: 'REMOVED_FROM_GROUP',
+          old_value: g.name
+        }))
+      });
+
+      return g;
+    });
+
+    res.json(group);
+  } catch (err) {
+    console.error('[REMOVE_CARDS_FROM_GROUP_ERROR]:', err);
+    res.status(500).json({ error: 'Erro ao remover cards do agrupamento' });
+  }
+});
+
+/**
  * Remove um grupo (Os cards continuam existindo, apenas perdem o vínculo)
  */
 app.delete('/api/kanban/groups/:id', authenticate, async (req: AuthRequest, res) => {
@@ -924,6 +1032,91 @@ app.get('/api/dashboard/metrics', authenticate, async (req: AuthRequest, res) =>
   }
 });
 
+// --- NOTIFICATIONS API ---
+
+/**
+ * Marcar Todas as Notificações como Lidas
+ */
+app.patch('/api/notifications/read-all', authenticate, async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  console.log(`[PATCH] /api/notifications/read-all for user ${userId}`);
+
+  try {
+    const result = await prisma.notification.updateMany({
+      where: { user_id: userId, is_read: false },
+      data: { is_read: true }
+    });
+    console.log(`[READ_ALL_SUCCESS]: ${result.count} notifications updated`);
+    res.json({ success: true, count: result.count });
+  } catch (err) {
+    console.error('[READ_ALL_ERROR]:', err);
+    res.status(500).json({ error: 'Erro ao processar leitura total' });
+  }
+});
+
+/**
+ * Listar Notificações do Usuário
+ */
+app.get('/api/notifications', authenticate, async (req: AuthRequest, res) => {
+  const { search, from, to } = req.query;
+  const userId = req.user!.id;
+
+  try {
+    const where: any = { user_id: userId };
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search as string, mode: 'insensitive' } },
+        { message: { contains: search as string, mode: 'insensitive' } },
+      ];
+    }
+
+    if (from || to) {
+      where.created_at = {};
+      if (from) where.created_at.gte = new Date(from as string);
+      if (to) where.created_at.lte = new Date(to as string);
+    }
+
+    const notifications = await prisma.notification.findMany({
+      where,
+      orderBy: { created_at: 'desc' }
+    });
+
+    res.json(notifications);
+  } catch (err) {
+    console.error('Erro ao buscar notificações:', err);
+    res.status(500).json({ error: 'Erro ao buscar notificações' });
+  }
+});
+
+/**
+ * Marcar Notificação como Lida
+ */
+app.patch('/api/notifications/:id/read', authenticate, async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const userId = req.user!.id;
+
+  try {
+    const notification = await prisma.notification.findFirst({
+      where: { id, user_id: userId }
+    });
+
+    if (!notification) {
+      return res.status(404).json({ error: 'Notificação não encontrada' });
+    }
+
+    await prisma.notification.update({
+      where: { id },
+      data: { is_read: true }
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao ler notificação:', err);
+    res.status(500).json({ error: 'Erro ao processar leitura' });
+  }
+});
+
 // REMINDERS
 
 /**
@@ -957,6 +1150,48 @@ app.post('/api/reminders', authenticate, async (req: AuthRequest, res) => {
     res.status(201).json(reminder);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao criar lembrete' });
+  }
+});
+
+/**
+ * Atualiza um lembrete (marcar como feito, editar título/data)
+ */
+app.patch('/api/reminders/:id', authenticate, async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  console.log(`[PATCH] /api/reminders/${id}`);
+  try {
+    const reminder = await prisma.reminder.update({
+      where: { id, user_id: req.user!.id },
+      data: {
+        title: req.body.title,
+        description: req.body.description,
+        due_at: req.body.due_at ? new Date(req.body.due_at) : undefined,
+        is_done: req.body.is_done,
+        mentions: req.body.mentions
+      }
+    });
+    res.json(reminder);
+  } catch (err) {
+    console.error('[PATCH_REMINDER_ERROR]:', err);
+    res.status(500).json({ error: 'Erro ao atualizar lembrete' });
+  }
+});
+
+/**
+ * Exclui um lembrete
+ */
+app.delete('/api/reminders/:id', authenticate, async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  console.log(`[DELETE] /api/reminders/${id}`);
+  try {
+    const deleted = await prisma.reminder.delete({
+      where: { id, user_id: req.user!.id }
+    });
+    console.log(`[DELETE_SUCCESS] /api/reminders/${id}`);
+    res.status(204).send();
+  } catch (err) {
+    console.error('[DELETE_REMINDER_ERROR]:', err);
+    res.status(500).json({ error: 'Erro ao excluir lembrete' });
   }
 });
 

@@ -7,6 +7,7 @@ import { kanbanService } from '../services/kanbanService';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,7 +32,10 @@ export function NotificationCenter() {
 
   const markAllAsReadMutation = useMutation({
     mutationFn: kanbanService.markAllNotificationsAsRead,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Notificações marcadas como lidas');
+    }
   });
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length;
@@ -219,9 +223,13 @@ export function NotificationCenter() {
             </div>
 
             <div className="p-3 bg-slate-50 border-t border-slate-200 text-center">
-              <button className="text-[10px] font-black font-mono text-slate-400 uppercase tracking-[0.2em] hover:text-slate-600 transition-colors">
+              <Link 
+                to="/dashboard/notifications"
+                onClick={() => setIsOpen(false)}
+                className="block w-full text-[10px] font-black font-mono text-slate-400 uppercase tracking-[0.2em] hover:text-[#008542] transition-colors"
+              >
                 Histórico completo
-              </button>
+              </Link>
             </div>
           </motion.div>
         )}

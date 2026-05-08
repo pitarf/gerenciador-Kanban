@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Filter,
   Search,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { reminderService } from '../services/reminderService';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -26,6 +27,7 @@ export default function RemindersPage() {
   const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'DONE'>('PENDING');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   const [searchParams, setSearchParams] = useSearchParams();
   const qParam = searchParams.get('q') || '';
@@ -67,6 +69,7 @@ export default function RemindersPage() {
     mutationFn: (id: string) => reminderService.deleteReminder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-reminders'] });
+      setConfirmDeleteId(null);
       toast.success('Lembrete excluído');
     }
   });
@@ -97,11 +100,11 @@ export default function RemindersPage() {
             <Bell className="text-[#008542]" size={32} />
             Meus Lembretes
           </h2>
-          <p className="text-slate-500 mt-1">Gerencie suas tarefas pendentes e alertas monitorados.</p>
+          <p className="text-slate-500 mt-1">Gerencie suas tarefas aguardando e alertas monitorados.</p>
         </div>
         
         <div className="flex items-center gap-3 bg-white p-1 rounded-xl shadow-sm border border-slate-200">
-           <StatCard label="Pendentes" value={stats.pending} color="text-amber-600 bg-amber-50" />
+           <StatCard label="Aguardando" value={stats.pending} color="text-amber-600 bg-amber-50" />
            <StatCard label="Concluídos" value={stats.completed} color="text-emerald-600 bg-emerald-50" />
         </div>
       </div>
@@ -120,7 +123,7 @@ export default function RemindersPage() {
         </div>
 
         <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-full md:w-auto">
-          <FilterButton active={filter === 'PENDING'} onClick={() => setFilter('PENDING')} label="Pendentes" />
+          <FilterButton active={filter === 'PENDING'} onClick={() => setFilter('PENDING')} label="Aguardando" />
           <FilterButton active={filter === 'DONE'} onClick={() => setFilter('DONE')} label="Concluídos" />
           <FilterButton active={filter === 'ALL'} onClick={() => setFilter('ALL')} label="Todos" />
         </div>
@@ -171,13 +174,31 @@ export default function RemindersPage() {
                       </div>
                       
                       <div className="flex gap-2 shrink-0">
-                        <button 
-                          onClick={() => deleteReminderMutation.mutate(reminder.id)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                          title="Excluir lembrete"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {confirmDeleteId === reminder.id ? (
+                          <div className="flex items-center gap-2 animate-in slide-in-from-right-2">
+                            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Excluir?</span>
+                            <button 
+                              onClick={() => deleteReminderMutation.mutate(reminder.id)}
+                              className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                            >
+                              <CheckCircle2 size={14} />
+                            </button>
+                            <button 
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="p-1.5 bg-slate-200 text-slate-500 rounded-lg hover:bg-slate-300 transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => setConfirmDeleteId(reminder.id)}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            title="Excluir lembrete"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
                       </div>
                     </div>
 
