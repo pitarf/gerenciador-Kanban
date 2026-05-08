@@ -120,7 +120,8 @@ app.post('/api/auth/login', async (req, res) => {
     });
     res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
-    res.status(500).json({ error: 'Erro interno no servidor' });
+    console.error('[AUTH_LOGIN_ERROR]:', err);
+    res.status(500).json({ error: 'Erro interno no servidor ao tentar realizar login' });
   }
 });
 
