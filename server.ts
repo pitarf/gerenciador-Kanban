@@ -6,8 +6,8 @@
  */
 
 import express from 'express';
-import app from './src/server/app';
 import { createServer as createViteServer } from 'vite';
+import app from './api/_app';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
