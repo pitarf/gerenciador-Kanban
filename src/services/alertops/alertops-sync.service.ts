@@ -23,31 +23,33 @@ export async function syncAssignedAlertOpsAlerts() {
   try {
     // 1. Buscar registros 'Assigned' na tabela raw
     // Usamos $queryRawUnsafe para ter controle total sobre as aspas de schema/tabela
-    console.log(`[Sync] Executando consulta na tabela raw...`);
+    console.log(`[Sync] Executando consulta otimizada na tabela raw...`);
     
     let rawEvents: any[] = [];
     let retryCount = 0;
     while (retryCount < 3) {
       try {
+        // Query otimizada buscando apenas os campos necessários
         rawEvents = await prisma.$queryRawUnsafe(`
-          SELECT * FROM "tclog_alertops"."alert_events" 
+          SELECT "message_thread_id", "message_text", "description", "topic", "source_identifier", 
+                 "source_name", "message_thread_status_type", "last_added_note", "resolution", 
+                 "criticidade", "owner_name", "owner_username", "last_modified_date_local", "closed_date_local"
+          FROM "tclog_alertops"."alert_events" 
           WHERE UPPER(TRIM("message_thread_status_type")) = 'ASSIGNED'
+          OR "message_thread_id" IN (SELECT "alertops_thread_id" FROM "public"."alertops_alerts")
+          ORDER BY "last_modified_date_local" DESC NULLS LAST
         `);
         break;
       } catch (err: any) {
-        if (err.message?.includes('terminating connection') || err.code === 'P2024') {
-          console.warn(`[Sync] Conexão interrompida, tentando novamente (${retryCount + 1}/3)...`);
-          retryCount++;
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          await prisma.$connect();
-        } else {
-          throw err;
-        }
+        console.error(`[Sync] Erro na tentativa ${retryCount + 1}:`, err.message);
+        retryCount++;
+        if (retryCount >= 3) throw err;
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
     alertsFound = rawEvents.length;
-    console.log(`[Sync] Encontrados ${alertsFound} registros com status 'Assigned'.`);
+    console.log(`[Sync] Registros encontrados para processar: ${alertsFound}`);
 
     // Procura o tenant 'transpetro' ou o primeiro disponível
     let tenant = await prisma.tenant.findUnique({
@@ -82,22 +84,21 @@ export async function syncAssignedAlertOpsAlerts() {
 
     for (const event of rawEvents) {
       try {
-        const threadId = event.message_thread_id;
-        if (!threadId) {
-          console.warn("[Sync] Alerta sem message_thread_id ignorado.");
+        const threadId = String(event.message_thread_id);
+        if (!threadId || threadId === 'undefined' || threadId === 'null') {
+          console.warn("[Sync] Alerta com message_thread_id inválido ignorado.");
           continue;
         }
 
         const truncate = (str: string, n: number) => {
           if (!str) return '';
-          // Limpar quebras de linha e excesso de espaços para o título
           const clean = str.replace(/\s+/g, ' ').trim();
           return clean.length > n ? clean.substring(0, n) + '...' : clean;
         };
 
-        const messageText = event.message_text || event.description || '';
-        // Prioridade para o título do card: Mensagem > Tópico > Descrição
-        const titleForCard = truncate(event.message_text || event.topic || event.description || '', 150) || event.source_identifier || 'Alerta sem identificador';
+        const messageText = (event.message_text || event.description || '').trim();
+        // O título deve ser IGUAL à mensagem do alerta
+        const titleForCard = messageText || event.source_identifier || 'Alerta sem título';
 
         // 3. Upsert alertops_alerts
         const alert = await prisma.alertopsAlert.upsert({
@@ -107,7 +108,7 @@ export async function syncAssignedAlertOpsAlerts() {
             source_identifier: event.source_identifier,
             integration_name: event.source_name,
             status_alertops: event.message_thread_status_type,
-            title: event.topic || event.description,
+            title: messageText,
             message_text: messageText,
             description: event.description,
             topic: event.topic,
@@ -129,15 +130,17 @@ export async function syncAssignedAlertOpsAlerts() {
           },
           update: {
             status_alertops: event.message_thread_status_type,
-            last_note: event.last_added_note,
-            resolution_note: event.resolution,
+            title: messageText,
+            message_text: messageText,
+            description: event.description,
+            topic: event.topic,
             criticidade: event.criticidade,
             owner_name: event.owner_name,
             owner_username: event.owner_username,
-            message_text: messageText,
             alert_updated_at: parseAlertOpsDate(event.last_modified_date_local),
             alert_closed_at: parseAlertOpsDate(event.closed_date_local),
-            updated_at: new Date()
+            last_note: event.last_added_note,
+            resolution_note: event.resolution
           }
         });
 
@@ -155,7 +158,7 @@ export async function syncAssignedAlertOpsAlerts() {
               alertops_thread_id: threadId,
               title: titleForCard,
               message_text: messageText,
-              description: alert.description,
+              description: event.description,
               status_id: initialStatus!.id,
               criticidade: alert.criticidade,
               owner_name: alert.owner_name,
@@ -204,11 +207,12 @@ export async function syncAssignedAlertOpsAlerts() {
           await prisma.card.update({
              where: { id: existingCard.id },
              data: {
+               title: titleForCard, // Forçar o novo título baseado no message_text
+               message_text: messageText,
+               description: event.description,
                due_at: alert.sla_deadline_at,
                criticidade: alert.criticidade,
-               owner_name: alert.owner_name,
-               message_text: messageText,
-               title: titleForCard
+               owner_name: alert.owner_name
              }
           });
         }

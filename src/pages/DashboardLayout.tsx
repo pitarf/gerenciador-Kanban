@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { NotificationCenter } from '../components/NotificationCenter';
+import { kanbanService } from '../services/kanbanService';
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -39,19 +40,12 @@ export default function DashboardLayout() {
 
   const triggerSync = async () => {
     setSyncing(true);
+    const syncToastId = toast.loading('Sincronizando Alertas...');
     try {
-      const res = await fetch('/api/internal/sync-alertops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(`Sincronização concluída: ${data.alertsFound} alertas processados, ${data.cardsCreated} cards criados.`);
-      } else {
-        toast.error(data.error || 'Falha na sincronização');
-      }
-    } catch (err) {
-      toast.error('Erro de conexão ao sincronizar');
+      const data = await kanbanService.sync();
+      toast.success(`Sincronização concluída! ${data.alertsFound} alertas processados.`, { id: syncToastId });
+    } catch (err: any) {
+      toast.error(err.message || 'Falha na sincronização', { id: syncToastId });
     } finally {
       setSyncing(false);
     }

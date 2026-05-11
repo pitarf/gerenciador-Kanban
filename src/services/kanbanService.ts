@@ -243,5 +243,17 @@ export const kanbanService = {
       headers: getAuthHeaders()
     });
     if (!res.ok) throw new Error('Falha ao excluir grupo');
+  },
+
+  sync: async (): Promise<any> => {
+    const res = await fetch('/api/internal/sync-alertops', {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Falha na sincronização');
+    }
+    return res.json();
   }
 };

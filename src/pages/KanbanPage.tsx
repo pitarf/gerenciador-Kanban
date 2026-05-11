@@ -133,20 +133,25 @@ export default function KanbanPage() {
   const handleSync = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
+    const syncToastId = toast.loading('Sincronizando com AlertOps...');
+    
     try {
-      const response = await fetch('/api/internal/sync-alertops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await response.json();
+      const data = await kanbanService.sync();
+      
       if (data.success) {
-        toast.success(`Sincronização concluída: ${data.alertsFound} alertas processados`);
-        queryClient.invalidateQueries({ queryKey: ['cards'] });
+        toast.success(`Sincronização concluída! ${data.alertsFound} alertas processados.`, { id: syncToastId });
+        
+        // Limpar o cache e forçar um refetch total de todas as queries relacionadas
+        await queryClient.resetQueries({ queryKey: ['cards'] });
+        await queryClient.refetchQueries({ queryKey: ['cards'] });
+        await queryClient.invalidateQueries({ queryKey: ['alert-groups'] });
+        await queryClient.invalidateQueries({ queryKey: ['statuses'] });
       } else {
-        toast.error('Erro ao sincronizar: ' + (data.error || 'Erro desconhecido'));
+        toast.error('Falha na sincronização: ' + (data.error || 'Erro desconhecido'), { id: syncToastId });
       }
-    } catch (err) {
-      toast.error('Erro de conexão ao sincronizar');
+    } catch (err: any) {
+      console.error('Erro na sincronização:', err);
+      toast.error('Erro: ' + (err.message || 'Falha na conexão'), { id: syncToastId });
     } finally {
       setIsSyncing(false);
     }
@@ -752,8 +757,8 @@ function KanbanCard({ card, isDragging }: { card: Card, isDragging: boolean }) {
       */}
 
       <p 
-        className="text-sm font-black text-slate-800 leading-snug mb-3 group-hover:text-[#008542] transition-colors break-words line-clamp-2 min-h-[2.5rem] overflow-hidden"
-        title={card.message_text || card.title}
+        className="text-sm font-black text-slate-800 leading-snug mb-3 group-hover:text-[#008542] transition-colors break-words line-clamp-4 min-h-[2.5rem] overflow-hidden"
+        title={card.title + (card.message_text ? `\n\nDetalhes: ${card.message_text}` : '')}
       >
         {card.title}
       </p>

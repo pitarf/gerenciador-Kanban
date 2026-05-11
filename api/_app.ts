@@ -954,14 +954,24 @@ app.delete('/api/kanban/groups/:id', authenticate, async (req: AuthRequest, res)
  * Rota interna para forçar a sincronização de alertas do banco raw (tclog_alertops)
  * Exige INTERNAL_SYNC_TOKEN em produção.
  */
-app.post('/api/internal/sync-alertops', async (req, res) => {
-  const token = req.headers['x-sync-token'];
-  if (token !== process.env.INTERNAL_SYNC_TOKEN && process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: 'Acesso negado.' });
-  }
-  const result = await syncAssignedAlertOpsAlerts();
-  res.json(result);
-});
+ app.post('/api/internal/sync-alertops', authenticate, async (req, res) => {
+   // Permite se houver o token de sistema OU se for um usuário autenticado (vindo do frontend)
+   const token = req.headers['x-sync-token'];
+   const isInternalTokenValid = token === process.env.INTERNAL_SYNC_TOKEN;
+   const isUserAuthenticated = !!(req as any).user;
+
+   if (!isInternalTokenValid && !isUserAuthenticated && process.env.NODE_ENV === 'production') {
+     return res.status(403).json({ error: 'Acesso negado. Token ou autenticação necessária.' });
+   }
+
+   try {
+     const result = await syncAssignedAlertOpsAlerts();
+     res.json({ ...result, success: true });
+   } catch (err: any) {
+     console.error('[SYNC_ROUTE_ERROR]:', err);
+     res.status(500).json({ success: false, error: err.message || 'Erro interno na sincronização' });
+   }
+ });
 
 // METRICS
 
