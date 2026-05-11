@@ -1463,6 +1463,16 @@ function CardDetailDrawer({ card, onClose, groups, allCards, onDeleteGroup, onCa
 
   const highlightMentions = (text: string) => {
     let html = text;
+
+    // Auto-link URLs (texto puro que começa com http, https ou www)
+    // Evita URLs que já estão dentro de tags <a> ou atributos
+    const urlPattern = /(?<!href="|src="|">)\b((?:https?|ftp):\/\/[^\s<]+|www\.[^\s<]+)\b/gi;
+    html = html.replace(urlPattern, (match) => {
+      const url = match.startsWith('www') ? `https://${match}` : match;
+      const label = getFriendlyLinkLabel(url);
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+    });
+
     // Highlight @todos
     html = html.replace(/@todos/gi, '<span class="px-1 py-0.5 rounded bg-blue-100 text-blue-700 font-bold">@todos</span>');
     
@@ -1470,7 +1480,6 @@ function CardDetailDrawer({ card, onClose, groups, allCards, onDeleteGroup, onCa
     users.forEach((user: any) => {
       if (user.name) {
         const mention = `@${user.name}`;
-        // Escape special characters in name and use boundary check
         const escapedName = user.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`@${escapedName}\\b`, 'gi');
         html = html.replace(regex, '<span class="px-1 py-0.5 rounded bg-[#008542]/10 text-[#008542] font-bold">$&</span>');
@@ -2025,7 +2034,7 @@ function CardDetailDrawer({ card, onClose, groups, allCards, onDeleteGroup, onCa
                            </div>
 
                            <div 
-                             className="text-sm text-slate-600 leading-relaxed mb-4 prose-sm prose-slate max-w-none break-words" 
+                             className="text-sm text-slate-600 leading-relaxed mb-4 prose-sm prose-slate max-w-none break-words comment-content-area" 
                              dangerouslySetInnerHTML={{ __html: highlightMentions(comment.comment) }} 
                            />
                            

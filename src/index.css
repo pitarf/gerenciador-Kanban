@@ -100,4 +100,20 @@
   .quill-editor .ql-editor {
     overflow: visible !important;
   }
+
+  /* Estilização para links nos comentários */
+  .comment-content-area a, 
+  .prose.comment-content-area a {
+    color: var(--color-transpetro-green) !important;
+    text-decoration: underline !important;
+    text-underline-offset: 2px;
+    font-weight: 700 !important;
+    transition: all 0.2s;
+  }
+
+  .comment-content-area a:hover,
+  .prose.comment-content-area a:hover {
+    color: #006b35 !important;
+    opacity: 0.8;
+  }
 }
